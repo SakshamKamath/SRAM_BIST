@@ -4,10 +4,10 @@
 module march_bist_controller #(
     parameter P_DATA_WIDTH = 32,
     parameter P_ADDR_WIDTH = 10,
-    parameter NUM_WORDS    = 512,
-
+    parameter P_FIFO_DEPTH = 2,   // (2^P_FIFO_DEPTH) is the actual depth
     //Derived Parameters
-    parameter BMWIDTH = P_DATA_WIDTH/8
+    parameter BMWIDTH    = P_DATA_WIDTH/8,
+    parameter NUM_WORDS  = 1 << P_ADDR_WIDTH
 )   
     (
         //JTAG Related Signals
@@ -35,14 +35,6 @@ module march_bist_controller #(
 
 // ####################  March-MSS Algorithm FSM #####################
 
-// // Typedefs for operations involved in any March Algorithm (without patterns)
-// typedef enum logic [1:0] {
-//     OP_WRITE0,
-//     OP_READ0,
-//     OP_WRITE1,
-//     OP_READ1
-//   } op_e;
-
 // Stage 0: ↕(w0)
 // Stage 1: ⇑(r0, r0, w1, w1)
 // Stage 2: ⇑(r1, r1, w0, w0)
@@ -68,7 +60,6 @@ localparam logic [P_DATA_WIDTH-1:0] DATA_ONE  = {P_DATA_WIDTH{1'b1}};
 
 
 // Registers for the algorithm
-// op_e        op_d, op_q;
 seq_e       seq_d, seq_q;
 logic       err_d, err_q;
 logic [1:0] sub_op_d, sub_op_q;
@@ -268,6 +259,32 @@ always_comb begin
 
     endcase
 end
+
+
+
+
+    fifo #(
+        .P_FIFO_DEPTH(P_FIFO_DEPTH),
+        .P_DATA_WIDTH(P_DATA_WIDTH)
+    ) u_err_fifo (
+        .clk_i(),
+        .rst_ni(),
+        .wen_i(),
+        .ren_i(),
+        .data_i(),
+        .data_o(),
+        .full_o(),
+        .empty_o()
+    );
+
+
+
+
+
+
+
+
+
 
 
 always_ff @(posedge tclk_i) begin
