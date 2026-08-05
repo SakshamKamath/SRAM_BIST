@@ -6,6 +6,7 @@ module tb_march_bist_top;
   parameter P_DATA_WIDTH = 32;
   parameter P_ADDR_WIDTH = 10;
   parameter NUM_WORDS    = 512;
+  parameter P_FIFO_DEPTH = 0;
   parameter CLK_PERIOD   = 10;
 
   parameter FAULT_ADDR   = 10'd42;
@@ -23,6 +24,7 @@ module tb_march_bist_top;
   logic start;
   logic busy;
   logic done;
+  logic fail;
 
   // Controller <-> Memory Interface
   logic [P_ADDR_WIDTH-1:0] memaddr;
@@ -47,7 +49,7 @@ module tb_march_bist_top;
   march_bist_controller #(
       .P_DATA_WIDTH(P_DATA_WIDTH),
       .P_ADDR_WIDTH(P_ADDR_WIDTH),
-      .P_FIFO_DEPTH(2)
+      .P_FIFO_DEPTH(P_FIFO_DEPTH)
   ) u_bist_controller (
       .tdi_i    (tdi),
       .tms_i    (tms),
@@ -57,6 +59,7 @@ module tb_march_bist_top;
       .start_i  (start),
       .busy_o   (busy),
       .done_o   (done),
+      .fail_o   (fail),
       .rdata_i  (rdata),
       .memaddr_o(memaddr),
       .wdata_o  (wdata),
