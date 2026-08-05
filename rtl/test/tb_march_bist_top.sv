@@ -4,7 +4,7 @@ module tb_march_bist_top;
   // Parameters
   // ---------------------------------------------------------------------------
   parameter P_DATA_WIDTH = 32;
-  parameter P_ADDR_WIDTH = 10;
+  parameter P_ADDR_WIDTH = 9;
   parameter NUM_WORDS    = 512;
   parameter P_FIFO_DEPTH = 0;
   parameter CLK_PERIOD   = 10;
@@ -30,7 +30,7 @@ module tb_march_bist_top;
   logic [P_ADDR_WIDTH-1:0] memaddr;
   logic [P_DATA_WIDTH-1:0] wdata;
   logic [P_DATA_WIDTH-1:0] rdata;
-  logic [P_DATA_WIDTH-1:0] membm; 
+  logic [P_DATA_WIDTH/8-1:0] membm; 
   logic                    memen;
   logic                    memren;
   logic                    memwen;
@@ -151,12 +151,21 @@ module tb_march_bist_top;
     $display("\n[TEST 1] Running March BIST on Memory...");
     run_bist_test();
 
-    if (u_bist_controller.seq_q == u_bist_controller.DONE) begin
+    // if (u_bist_controller.seq_q == u_bist_controller.DONE) begin
+    //   $display(">>> BIST RUN COMPLETED SUCCESSFULLY (DONE)");
+    // end else if (u_bist_controller.seq_q == u_bist_controller.ERR_ABORT) begin
+    //   $display(">>> BIST DETECTED A FAULT AND ABORTED (ERR_ABORT)");
+    // end else begin
+    //   $display(">>> TEST TERMINATED IN STATE: %0d", u_bist_controller.seq_q);
+    // end
+    if (done) begin
       $display(">>> BIST RUN COMPLETED SUCCESSFULLY (DONE)");
-    end else if (u_bist_controller.seq_q == u_bist_controller.ERR_ABORT) begin
-      $display(">>> BIST DETECTED A FAULT AND ABORTED (ERR_ABORT)");
-    end else begin
-      $display(">>> TEST TERMINATED IN STATE: %0d", u_bist_controller.seq_q);
+    end else if (fail) begin
+      $display(">>> BIST DETECTED A FAULT AND ABORTED (FAIL)");
+    end else if (busy) begin
+      $display(">>> BIST STILL RUNNING");
+    end else begin 
+      $display(">>> BIST TERMINATED WITHOUT COMPLETION");
     end
 
     $display("\n=========================================================");

@@ -317,7 +317,7 @@ always_comb begin
     end
 end
 
-always_ff @(posedge tclk_i or negedge trst_ni) begin
+always_ff @(posedge tclk_i) begin
     if (!trst_ni) begin
         err_addr_q <= '0;
     end else begin
@@ -329,7 +329,7 @@ end
 generate 
     if (P_FIFO_DEPTH > 0) begin : gen_fifo_enabled
         fifo #(
-            .P_FIFO_DEPTH(P_FIFO_DEPTH),
+            .P_FIFO_DEPTH(2),
             .P_FIFO_WIDTH(P_ADDR_WIDTH)
         ) u_err_fifo (
             .clk_i(tclk_i),
