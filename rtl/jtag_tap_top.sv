@@ -1,7 +1,7 @@
 module jtag_tap_top #(
     parameter P_IR_WIDTH = 4,
     parameter P_IDCODE_WIDTH = 32,
-    parameter P_BSR_WIDTH = 32,
+    parameter P_MBIST_MACROGRP_SIZE = 4,
     parameter IDCODE_VAL = 32'h1080_0786
 
 )
@@ -12,7 +12,9 @@ module jtag_tap_top #(
     input tdi_i,
 
     output tdo_o,
-    output tdo_en_o
+    output tdo_en_o,
+
+    output mbist_start_o
     );
 
 
@@ -47,11 +49,9 @@ jtag_tap_controller i_tap_fsm (
 
 //----------------------- Instruction Register -------------------------
 
-//All Possible Instructions with their opcodes
+//All Possible Instructions with their opcodes --TODO
 
 typedef enum logic [P_IR_WIDTH-1:0] {
-    INSTR_EXTEST,
-    INSTR_SAMPLE,
     INSTR_IDCODE,
     INSTR_BYPASS,
     INSTR_MBIST
@@ -127,6 +127,31 @@ always_comb begin
 end
 
 
+
+//----------------------- MBIST Register -------------------------
+
+logic mbist_reg_q, mbist_reg_d;
+
+always_ff @(posedge tclk_i) begin
+    if(!trst_ni) begin
+        mbist_reg_q <= 1'b0;
+    end
+    else begin
+        mbist_reg_q <= mbist_reg_d;
+    end
+end
+
+
+always_comb begin
+    if(update_dr && (ir_latched_q == INSTR_MBIST)) begin
+        mbist_reg_d = 1'b1;
+    end
+
+end
+
+
+
+
 //----------------------- IDCODE Register -------------------------
 
 // Stores the Unique ID for every device, good for debugging
@@ -192,5 +217,16 @@ end
 always_comb begin
     tdo_en_d = shift_ir || shift_dr;
 end
+
+
+
+
+// Output Assignments
+
+assign tdo_o = tdo_q;
+assign tdo_en_o = tdo_en_q;
+
+assign mbist_start_o = mbist_reg_q;
+
 
 endmodule
