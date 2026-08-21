@@ -1,7 +1,6 @@
 module jtag_tap_top #(
     parameter P_IR_WIDTH = 4,
     parameter P_IDCODE_WIDTH = 32,
-    parameter P_MBIST_MACROGRP_SIZE = 4,
     parameter IDCODE_VAL = 32'h1080_0786
 
 )
@@ -146,7 +145,6 @@ always_comb begin
     if(update_dr && (ir_latched_q == INSTR_MBIST)) begin
         mbist_reg_d = 1'b1;
     end
-
 end
 
 
