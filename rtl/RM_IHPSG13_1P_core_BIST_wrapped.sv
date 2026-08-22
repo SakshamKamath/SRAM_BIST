@@ -3,6 +3,7 @@ module RM_IHPSG13_1P_core_BIST_wrapped #(
     parameter P_ADDR_WIDTH    = 14,
     parameter P_IR_WIDTH      = 4,
     parameter P_IDCODE_WIDTH  = 32,
+    parameter P_FIFO_DEPTH    = 2,
     parameter IDCODE_VAL      = 32'h1080_0786
 )
     (

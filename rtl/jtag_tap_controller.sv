@@ -18,8 +18,8 @@ module jtag_tap_controller (
     output pause_ir_o,        
     output exit1_ir_o,        
     output update_ir_o,       
-    output exit2_ir_o,        
-)
+    output exit2_ir_o       
+);
 
 
 //All Possible FSM States 
@@ -200,22 +200,22 @@ end
 
 //Output Assignments
 
-assign run_test_idle_o    = (tap_state == RUN_TEST_IDLE);
-assign test_logic_reset_o = (tap_state == TEST_LOGIC_RESET);
-assign capture_dr_o       = (tap_state == CAPTURE_DR);
-assign select_dr_scan_o   = (tap_state == SELECT_DR_SCAN);
-assign exit1_dr_o         = (tap_state == EXIT1_DR);
-assign shift_dr_o         = (tap_state == SHIFT_DR);
-assign exit2_dr_o         = (tap_state == EXIT2_DR);
-assign pause_dr_o         = (tap_state == PAUSE_DR);
-assign select_ir_scan_o   = (tap_state == SELECT_IR_SCAN);
-assign update_dr_o        = (tap_state == UPDATE_DR);
-assign shift_ir_o         = (tap_state == SHIFT_IR);
-assign capture_ir_o       = (tap_state == CAPTURE_IR);
-assign pause_ir_o         = (tap_state == PAUSE_IR);
-assign exit1_ir_o         = (tap_state == EXIT1_IR);
-assign update_ir_o        = (tap_state == UPDATE_IR);
-assign exit2_ir_o         = (tap_state == EXIT2_IR);
+assign run_test_idle_o    = (state_q == RUN_TEST_OR_IDLE);
+assign test_logic_reset_o = (state_q == TEST_LOGIC_RESET);
+assign capture_dr_o       = (state_q == CAPTURE_DR);
+assign select_dr_scan_o   = (state_q == SELECT_DR_SCAN);
+assign exit1_dr_o         = (state_q == EXIT1_DR);
+assign shift_dr_o         = (state_q == SHIFT_DR);
+assign exit2_dr_o         = (state_q == EXIT2_DR);
+assign pause_dr_o         = (state_q == PAUSE_DR);
+assign select_ir_scan_o   = (state_q == SELECT_IR_SCAN);
+assign update_dr_o        = (state_q == UPDATE_DR);
+assign shift_ir_o         = (state_q == SHIFT_IR);
+assign capture_ir_o       = (state_q == CAPTURE_IR);
+assign pause_ir_o         = (state_q == PAUSE_IR);
+assign exit1_ir_o         = (state_q == EXIT1_IR);
+assign update_ir_o        = (state_q == UPDATE_IR);
+assign exit2_ir_o         = (state_q == EXIT2_IR);
 
 
 endmodule
