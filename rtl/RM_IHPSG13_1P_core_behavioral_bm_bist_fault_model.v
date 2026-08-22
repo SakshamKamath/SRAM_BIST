@@ -20,7 +20,7 @@ module SRAM_1P_behavioral_bm_bist (
 );
 
 parameter P_DATA_WIDTH = 24;
-parameter P_ADDR_WIDTH = 14;
+parameter P_ADDR_WIDTH = 8;
 localparam MEM_DEPTH   = 2**(P_ADDR_WIDTH);
 
 parameter EN_FAULT_INJECTION = 1'b0;

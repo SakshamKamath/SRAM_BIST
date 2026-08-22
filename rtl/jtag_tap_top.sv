@@ -145,6 +145,9 @@ always_comb begin
     if(update_dr && (ir_latched_q == INSTR_MBIST)) begin
         mbist_reg_d = 1'b1;
     end
+    else begin
+        mbist_reg_d = 1'b0;
+    end
 end
 
 
