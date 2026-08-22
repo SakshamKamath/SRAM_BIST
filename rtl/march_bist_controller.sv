@@ -6,7 +6,6 @@ module march_bist_controller #(
     parameter P_ADDR_WIDTH = 10,
     parameter P_FIFO_DEPTH = 2,   // (2^P_FIFO_DEPTH) is the actual depth
     //Derived Parameters
-    parameter BMWIDTH    = P_DATA_WIDTH/8,
     parameter NUM_WORDS  = 1 << P_ADDR_WIDTH
 )   
     (
@@ -30,7 +29,7 @@ module march_bist_controller #(
         output                     memen_o,
         output                     memren_o,
         output                     memwen_o,
-        output [BMWIDTH -1:0]      membm_o
+        output [P_DATA_WIDTH -1:0] membm_o
 
     );
 

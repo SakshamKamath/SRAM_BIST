@@ -6,46 +6,53 @@ module RM_IHPSG13_1P_core_BIST_wrapped #(
     parameter IDCODE_VAL      = 32'h1080_0786
 )
     (
-        A_ADDR,
-        A_DIN,
-        A_BM,
-        A_MEN,
-        A_WEN,
-        A_REN,
-        A_CLK,
-        A_DLY,
-        A_DOUT,
+        input  [P_ADDR_WIDTH-1:0] A_ADDR,
+        input  [P_DATA_WIDTH-1:0] A_DIN,
+        input  [P_DATA_WIDTH-1:0] A_BM,
+        input                     A_MEN,
+        input                     A_WEN,
+        input                     A_REN,
+        input                     A_CLK,
+        input                     A_DLY,
+        output [P_DATA_WIDTH-1:0] A_DOUT,
 
-        A_BIST_EN,
-        A_BIST_ADDR,
-        A_BIST_DIN,
-        A_BIST_BM,
-        A_BIST_MEN,
-        A_BIST_WEN,
-        A_BIST_REN,
-        A_BIST_CLK
+        // input                     A_BIST_EN,
+        // input [P_ADDR_WIDTH-1:0]  A_BIST_ADDR,
+        // input [P_DATA_WIDTH-1:0]  A_BIST_DIN,
+        // input [P_DATA_WIDTH-1:0]  A_BIST_BM,
+        // input                     A_BIST_MEN,
+        // input                     A_BIST_WEN,
+        // input                     A_BIST_REN,
+        // input                     A_BIST_CLK
+
+        input                     TEST_TDI,
+        input                     TEST_TCLK,
+        input                     TEST_TRSTNI,
+        input                     TEST_TMS,
+        output                    TEST_TDO
 
     );
 
 
-input wire  [P_ADDR_WIDTH-1:0]  A_ADDR;
-input wire  [P_DATA_WIDTH-1:0]  A_DIN;
-input wire  [P_DATA_WIDTH-1:0]  A_BM;
-input wire                      A_MEN;
-input wire                      A_WEN;
-input wire                      A_REN;
-input wire                      A_CLK;
-input wire                      A_DLY;
-output wire [P_DATA_WIDTH-1:0]  A_DOUT;
+// Signals required for connecting
+logic mbist_start;
 
-input wire                      A_BIST_EN;
-input wire  [P_ADDR_WIDTH-1:0]  A_BIST_ADDR;
-input wire  [P_DATA_WIDTH-1:0]  A_BIST_DIN;
-input wire  [P_DATA_WIDTH-1:0]  A_BIST_BM;
-input wire                      A_BIST_MEN;
-input wire                      A_BIST_WEN;
-input wire                      A_BIST_REN;
-input wire                      A_BIST_CLK;
+// Signals driven by march controller
+logic [P_ADDR_WIDTH-1:0] march_addr;
+logic [P_DATA_WIDTH-1:0] march_wdata;
+logic [P_DATA_WIDTH-1:0] march_bitmask;
+logic                    march_memen;
+logic                    march_memwen;
+logic                    march_memren;
+logic                    march_busy;
+logic                    march_fail;
+logic                    march_done;
+
+
+
+// Buffering for signal renaming and better understanding
+logic [P_DATA_WIDTH-1:0] march_rdata;
+assign march_rdata = A_DOUT;
 
 
 
@@ -54,13 +61,13 @@ jtag_tap_top #(
     .P_IDCODE_WIDTH(P_IDCODE_WIDTH),
     .IDCODE_VAL(IDCODE_VAL)
 ) i_jtag_tap_top (
-    .tclk_i        (A_BIST_CLK),
-    .tms_i         (),
-    .trst_ni       (),
-    .tdi_i         (),
-    .tdo_o         (),
+    .tclk_i        (TEST_TCLK),
+    .tms_i         (TEST_TMS),
+    .trst_ni       (TEST_TRSTNI),
+    .tdi_i         (TEST_TDI),
+    .tdo_o         (TEST_TDO),
     .tdo_en_o      (),
-    .mbist_start_o ()
+    .mbist_start_o (mbist_start)
 );
 
 
@@ -69,27 +76,46 @@ jtag_tap_top #(
       .P_ADDR_WIDTH(P_ADDR_WIDTH),
       .P_FIFO_DEPTH(P_FIFO_DEPTH)
   ) u_bist_controller (
-      .tdi_i    (tdi),
-      .tms_i    (tms),
-      .tclk_i   (tclk),
-      .trst_ni  (trst_n),
-      .tdo_o    (tdo),
-      .start_i  (start),
-      .busy_o   (busy),
-      .done_o   (done),
-      .fail_o   (fail),
-      .rdata_i  (rdata),
-      .memaddr_o(memaddr),
-      .wdata_o  (wdata),
-      .membm_o  (membm),   
-      .memen_o  (memen),
-      .memren_o (memren),
-      .memwen_o (memwen)
+      .tdi_i    (TEST_TDI),
+      .tms_i    (TEST_TMS),
+      .tclk_i   (TEST_TCLK),
+      .trst_ni  (TEST_TRSTNI),
+      .tdo_o    (),
+      .start_i  (mbist_start),
+      .busy_o   (march_busy),
+      .done_o   (march_done),
+      .fail_o   (march_fail),
+      .rdata_i  (march_rdata),
+      .memaddr_o(march_addr),
+      .wdata_o  (march_wdata),
+      .membm_o  (march_bitmask),   
+      .memen_o  (march_memen),
+      .memren_o (march_memren),
+      .memwen_o (march_memwen)
   );
 
 
+//------------------------------ Only for Testing -------------------------------------
 
+  // Localparam definitions matched to P_DATA_WIDTH (32-bit) and P_ADDR_WIDTH (1024 depth)
+  localparam [P_DATA_WIDTH-1:0] MY_SAF_1 [0:(1<<P_ADDR_WIDTH)-1] = '{
+      10'd42  : 32'h0000_0001, // Bit 0 stuck at 1 at Address 42 (0x02A)
+      default : 32'h0000_0000
+  };
+
+  localparam [P_DATA_WIDTH-1:0] MY_TF_01 [0:(1<<P_ADDR_WIDTH)-1] = '{
+      10'd10  : 32'h0000_000F, // Bits [3:0] fail 0->1 transition at Address 10
+      default : 32'h0000_0000
+  };
+
+  localparam [P_DATA_WIDTH-1:0] MY_RDF [0:(1<<P_ADDR_WIDTH)-1] = '{
+      10'd16  : 32'h8000_0000, // Bit 31 has RDF at Address 16
+      default : 32'h0000_0000
+  };
   
+// -----------------------------------------------------------------------------------
+
+
  SRAM_1P_behavioral_bm_bist #(
       .P_DATA_WIDTH      (P_DATA_WIDTH),
       .P_ADDR_WIDTH      (P_ADDR_WIDTH),
@@ -98,24 +124,24 @@ jtag_tap_top #(
       .MASK_TF_01        (MY_TF_01),
       .MASK_RDF          (MY_RDF)
   ) u_sram_mem (
-      .A_ADDR    (memaddr),
-      .A_DIN     (wdata),
-      .A_BM      (membm_32b),
-      .A_MEN     (memen),
-      .A_WEN     (memwen),
-      .A_REN     (memren),
-      .A_CLK     (tclk),
+      .A_ADDR    (A_ADDR),
+      .A_DIN     (A_DIN),
+      .A_BM      (A_BM),
+      .A_MEN     (A_MEN),
+      .A_WEN     (A_WEN),
+      .A_REN     (A_REN),
+      .A_CLK     (A_CLK),
       .A_DLY     (1'b0),
-      .A_DOUT    (rdata),
+      .A_DOUT    (A_DOUT),
 
-      .A_BIST_EN  (),
-      .A_BIST_ADDR(),
-      .A_BIST_DIN (),
-      .A_BIST_BM  (),
-      .A_BIST_MEN (),
-      .A_BIST_WEN (),
-      .A_BIST_REN (),
-      .A_BIST_CLK ()
+      .A_BIST_EN  (march_busy),
+      .A_BIST_ADDR(march_addr),
+      .A_BIST_DIN (march_wdata),
+      .A_BIST_BM  (march_bitmask),
+      .A_BIST_MEN (march_memen),
+      .A_BIST_WEN (march_memwen),
+      .A_BIST_REN (march_memren),
+      .A_BIST_CLK (TEST_TCLK)
   );
 
 
