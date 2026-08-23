@@ -328,7 +328,7 @@ end
 generate 
     if (P_FIFO_DEPTH > 0) begin : gen_fifo_enabled
         fifo #(
-            .P_FIFO_DEPTH(2),
+            .P_FIFO_DEPTH(P_FIFO_DEPTH),
             .P_FIFO_WIDTH(P_ADDR_WIDTH)
         ) u_err_fifo (
             .clk_i(tclk_i),

@@ -6,7 +6,7 @@ module tb_march_bist_top;
   parameter P_DATA_WIDTH = 32;
   parameter P_ADDR_WIDTH = 9;
   parameter NUM_WORDS    = 512;
-  parameter P_FIFO_DEPTH = 0;
+  parameter P_FIFO_DEPTH = 2;
   parameter CLK_PERIOD   = 10;
 
   parameter FAULT_ADDR   = 10'd42;

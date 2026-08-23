@@ -83,7 +83,7 @@ always_comb begin
                             end
 
         SHIFT_DR:           begin
-                                if(!tms_i) begin
+                                if(tms_i) begin
                                     state_d = EXIT1_DR;
                                 end
                             end
@@ -140,7 +140,7 @@ always_comb begin
                             end
 
         SHIFT_IR:           begin
-                                if(!tms_i) begin
+                                if(tms_i) begin
                                     state_d = EXIT1_IR;
                                 end            
                             end

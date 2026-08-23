@@ -100,17 +100,17 @@ jtag_tap_top #(
 
   // Localparam definitions matched to P_DATA_WIDTH (32-bit) and P_ADDR_WIDTH (1024 depth)
   localparam [P_DATA_WIDTH-1:0] MY_SAF_1 [0:(1<<P_ADDR_WIDTH)-1] = '{
-      10'd42  : 32'h0000_0001, // Bit 0 stuck at 1 at Address 42 (0x02A)
+      10'd2   : 32'h0000_0001, // Bit 0 stuck at 1 at Address 2 (0x02)
       default : 32'h0000_0000
   };
 
   localparam [P_DATA_WIDTH-1:0] MY_TF_01 [0:(1<<P_ADDR_WIDTH)-1] = '{
-      10'd10  : 32'h0000_000F, // Bits [3:0] fail 0->1 transition at Address 10
+      10'd8   : 32'h0000_000F, // Bits [3:0] fail 0->1 transition at Address 8
       default : 32'h0000_0000
   };
 
   localparam [P_DATA_WIDTH-1:0] MY_RDF [0:(1<<P_ADDR_WIDTH)-1] = '{
-      10'd16  : 32'h8000_0000, // Bit 31 has RDF at Address 16
+      10'd6   : 32'h0000_8000, // Bit 31 has RDF at Address 6
       default : 32'h0000_0000
   };
   
