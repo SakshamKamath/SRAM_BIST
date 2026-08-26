@@ -1,5 +1,6 @@
 module tb_jtag_march;
 
+  import march_pkg::*;
 
   localparam P_DATA_WIDTH   = 24;
   localparam P_ADDR_WIDTH   = 4;
@@ -213,8 +214,29 @@ initial begin
     // 3. Taking the tap controller to update dr state to start mbist
     jtag_write_dr(15'b0, dr_captured, 15);
 
+    fork
+      begin
+        wait (
+              (u_dut.u_bist_controller.seq_q == u_dut.u_bist_controller.DONE) || 
+              (u_dut.u_bist_controller.seq_q == u_dut.u_bist_controller.ERR_ABORT)
+             );
+      end
+      begin
+        // Watchdog timeout guard
+        #10000;
+        $error("[%0t ns] TIMEOUT: BIST execution took too long!", $time);
+        $finish;
+      end
+    join_any
+    disable fork;
 
-    #2500
+    // 5. Evaluate Execution Result
+    if (u_dut.u_bist_controller.fail_o) begin
+      $display("[%0t ns] >>> BIST ABORTED / FAILED! <<<", $time);
+    end else if (u_dut.u_bist_controller.done_o) begin
+      $display("[%0t ns] >>> BIST COMPLETED SUCCESSFULLY! <<<", $time);
+    end
+
     $finish;
 end
 

@@ -1,6 +1,5 @@
 
 
-
 module march_bist_controller #(
     parameter P_DATA_WIDTH = 32,
     parameter P_ADDR_WIDTH = 10,
@@ -41,17 +40,20 @@ module march_bist_controller #(
 // Stage 3: ⇓(r0, r0, w1, w1)
 // Stage 4: ⇓(r1, r1, w0, w0)
 // Stage 5: ↕(r0)
-typedef enum logic [3:0] {
-    IDLE,
-    STAGE_0,
-    STAGE_1,
-    STAGE_2,
-    STAGE_3,
-    STAGE_4,
-    STAGE_5,
-    DONE,
-    ERR_ABORT
-} seq_e;
+
+import march_pkg::*;
+// typedef enum logic [3:0] {
+//     IDLE,
+//     STAGE_0,
+//     STAGE_1,
+//     STAGE_2,
+//     STAGE_3,
+//     STAGE_4,
+//     STAGE_5,
+//     DONE,
+//     ERR_ABORT
+// } seq_e;
+
 
 
 // Expected read data patterns
