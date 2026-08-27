@@ -58,11 +58,7 @@ module fifo #(
     // ---------------------------------------------------------------------------
     // Memory Read Operation
     // ---------------------------------------------------------------------------
-    always_ff @(posedge clk_i) begin
-        if (ren_i && !empty_o) begin
-        rd_data <= memfifo[rd_ptr_q[P_FIFO_DEPTH-1:0]];
-        end
-    end
+    assign rd_data = memfifo[rd_ptr_q[P_FIFO_DEPTH-1:0]];
 
 
 

@@ -7,6 +7,7 @@ module tb_jtag_march;
   localparam P_IR_WIDTH     = 4;
   localparam P_IDCODE_WIDTH = 32;
   localparam IDCODE_VAL     = 32'h1080_0786;
+  localparam P_FIFO_DEPTH   = 2;
 
   // Testbench Signals
   logic TEST_TCLK;
@@ -35,6 +36,7 @@ module tb_jtag_march;
       .P_ADDR_WIDTH  (P_ADDR_WIDTH),
       .P_IR_WIDTH    (P_IR_WIDTH),
       .P_IDCODE_WIDTH(P_IDCODE_WIDTH),
+      .P_FIFO_DEPTH  (P_FIFO_DEPTH),
       .IDCODE_VAL    (IDCODE_VAL)
   ) u_dut (
       .A_ADDR(A_ADDR),
@@ -205,13 +207,13 @@ initial begin
     #100;
     TEST_TRSTNI = 1'b1; // Release hard reset
 
-    // 1. Reset TAP FSM
+    // Reset TAP FSM
     jtag_reset();
 
-    // 2. Write custom opcode '4'b0010' (INSTR_MBIST) into IR
+    // Write custom opcode '4'b0010' (INSTR_MBIST) into IR
     jtag_write_ir(4'b0010, 4);
 
-    // 3. Taking the tap controller to update dr state to start mbist
+    // Taking the tap controller to update dr state to start mbist
     jtag_write_dr(15'b0, dr_captured, 15);
 
     fork
@@ -230,14 +232,39 @@ initial begin
     join_any
     disable fork;
 
-    // 5. Evaluate Execution Result
+    // Evaluate Execution Result
     if (u_dut.u_bist_controller.fail_o) begin
       $display("[%0t ns] >>> BIST ABORTED / FAILED! <<<", $time);
     end else if (u_dut.u_bist_controller.done_o) begin
       $display("[%0t ns] >>> BIST COMPLETED SUCCESSFULLY! <<<", $time);
     end
 
+    
+    // 6. Read Erroneous Addresses from FIFO via JTAG
+    
+    if (u_dut.u_bist_controller.fail_o) begin
+      $display("[%0t ns] Fetching error addresses from BIST FIFO...", $time);
+
+      // Load the ERRADDR_LOAD instruction into IR (4'b0011)
+      jtag_write_ir(4'b0011, 4);
+
+      jtag_write_dr({P_ADDR_WIDTH{1'b0}}, dr_captured, P_ADDR_WIDTH);
+
+      jtag_write_dr({P_ADDR_WIDTH{1'b0}}, dr_captured, P_ADDR_WIDTH);
+
+      // // Read out each error address from the DR FIFO depth times
+      // for (int i = 0; i < P_FIFO_DEPTH; i++) begin
+      //   // Perform a JTAG DR scan to capture and shift out the stored address.
+      //   // We pass 1'b0 dummy data for TDI since we are only reading TDO.
+      //   jtag_write_dr({P_ADDR_WIDTH{1'b0}}, dr_captured, P_ADDR_WIDTH);
+
+      //   $display("[%0t ns] FIFO Entry [%0d]: Error Address = 0x%0h", 
+      //            $time, i, dr_captured[P_ADDR_WIDTH-1:0]);
+      // end
+    end
+    #200;
     $finish;
+
 end
 
 endmodule

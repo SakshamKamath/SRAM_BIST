@@ -17,6 +17,7 @@ module march_bist_controller #(
 
         //Control Signals
         input start_i,
+        input erraddr_rd_i,
         output busy_o,
         output done_o,
         output fail_o,
@@ -28,7 +29,10 @@ module march_bist_controller #(
         output                     memen_o,
         output                     memren_o,
         output                     memwen_o,
-        output [P_DATA_WIDTH -1:0] membm_o
+        output [P_DATA_WIDTH -1:0] membm_o,
+
+        //MBIST erroneous address output
+        output [P_ADDR_WIDTH -1:0] mbist_erraddr_o
 
     );
 
@@ -94,7 +98,7 @@ always_comb begin
         ren           = 1'b0;
         wdata         = DATA_ZERO;
         fifo_wren     = 1'b0;
-        fifo_rden     = 1'b0;
+        fifo_rden     = erraddr_rd_i;
         read_error    = 1'b0;
         read_logged_d = read_logged_q;
 
@@ -338,7 +342,7 @@ generate
             .wen_i(fifo_wren),
             .ren_i(fifo_rden),
             .data_i(err_addr_q),
-            .data_o(),
+            .data_o(mbist_erraddr_o),
             .full_o(fifo_full),
             .empty_o(fifo_empty)
         );

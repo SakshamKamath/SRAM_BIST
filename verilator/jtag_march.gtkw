@@ -1,14 +1,14 @@
 [*]
 [*] GTKWave Analyzer v4.0.0-prealpha (8ba24ab) (w)1999-2022 BSI
-[*] Sun Aug 23 09:55:09 2026
+[*] Thu Aug 27 09:16:31 2026
 [*]
-[dumpfile] "/scratch/vlsi2_42fs26/SEM_PROJ/SRAM_BIST/verilator/obj_dir/tb_jtag_march.fst"
-[dumpfile_mtime] "Sun Aug 23 09:35:16 2026"
-[dumpfile_size] 5457
-[savefile] "/scratch/vlsi2_42fs26/SEM_PROJ/SRAM_BIST/verilator/jtag_march.gtkw"
-[timestart] 1393
-[size] 1374 600
-[pos] -1 -1
+[dumpfile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/obj_dir/tb_jtag_march.fst"
+[dumpfile_mtime] "Thu Aug 27 09:14:34 2026"
+[dumpfile_size] 6172
+[savefile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/jtag_march.gtkw"
+[timestart] 1715
+[size] 1427 600
+[pos] -16 26
 *-6.000000 1525 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
@@ -41,7 +41,7 @@
 [treeopen] tb_jtag_march.u_dut.i_jtag_tap_top.
 [treeopen] tb_jtag_march.u_dut.u_bist_controller.
 [treeopen] tb_jtag_march.u_dut.u_bist_controller.gen_fifo_enabled.
-[sst_width] 276
+[sst_width] 297
 [signals_width] 256
 [sst_expanded] 1
 [sst_vpaned_height] 150
@@ -53,8 +53,12 @@ tb_jtag_march.u_dut.i_jtag_tap_top.ir_latched_q[3:0]
 @28
 tb_jtag_march.u_dut.i_jtag_tap_top.mbist_start_o
 tb_jtag_march.u_dut.TEST_TMS
+@29
+tb_jtag_march.u_dut.TEST_TDO
 @100000028
 tb_jtag_march.u_dut.i_jtag_tap_top.i_tap_fsm.state_q[3:0]
+@22
+tb_jtag_march.u_dut.i_jtag_tap_top.err_addr_reg_q[3:0]
 @200
 -March Test Signals
 @28
@@ -69,7 +73,7 @@ tb_jtag_march.u_dut.u_sram_mem.A_BIST_REN
 @22
 tb_jtag_march.u_dut.u_sram_mem.A_BIST_BM[23:0]
 tb_jtag_march.u_dut.u_sram_mem.A_DOUT[23:0]
-@29
+@28
 tb_jtag_march.u_dut.u_bist_controller.sub_op_q[1:0]
 @22
 tb_jtag_march.u_dut.u_bist_controller.addr_q[3:0]

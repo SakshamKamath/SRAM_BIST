@@ -36,7 +36,7 @@ module RM_IHPSG13_1P_core_BIST_wrapped #(
 
 
 // Signals required for connecting
-logic mbist_start;
+logic mbist_start, mbist_erraddr_read;
 
 // Signals driven by march controller
 logic [P_ADDR_WIDTH-1:0] march_addr;
@@ -48,6 +48,7 @@ logic                    march_memren;
 logic                    march_busy;
 logic                    march_fail;
 logic                    march_done;
+logic [P_ADDR_WIDTH-1:0] mbist_erraddr;
 
 
 
@@ -60,15 +61,19 @@ assign march_rdata = A_DOUT;
 jtag_tap_top #(
     .P_IR_WIDTH(P_IR_WIDTH),
     .P_IDCODE_WIDTH(P_IDCODE_WIDTH),
+    .P_ADDR_WIDTH(P_ADDR_WIDTH),
     .IDCODE_VAL(IDCODE_VAL)
 ) i_jtag_tap_top (
-    .tclk_i        (TEST_TCLK),
-    .tms_i         (TEST_TMS),
-    .trst_ni       (TEST_TRSTNI),
-    .tdi_i         (TEST_TDI),
-    .tdo_o         (TEST_TDO),
-    .tdo_en_o      (),
-    .mbist_start_o (mbist_start)
+    .tclk_i                (TEST_TCLK),
+    .tms_i                 (TEST_TMS),
+    .trst_ni               (TEST_TRSTNI),
+    .tdi_i                 (TEST_TDI),
+    .mbist_erraddr_i       (mbist_erraddr),
+    .mbist_fifo_notempty_i (march_fail),
+    .tdo_o                 (TEST_TDO),
+    .tdo_en_o              (),
+    .mbist_start_o         (mbist_start),
+    .mbist_erraddr_read_o  (mbist_erraddr_read)
 );
 
 
@@ -77,22 +82,24 @@ jtag_tap_top #(
       .P_ADDR_WIDTH(P_ADDR_WIDTH),
       .P_FIFO_DEPTH(P_FIFO_DEPTH)
   ) u_bist_controller (
-      .tdi_i    (TEST_TDI),
-      .tms_i    (TEST_TMS),
-      .tclk_i   (TEST_TCLK),
-      .trst_ni  (TEST_TRSTNI),
-      .tdo_o    (),
-      .start_i  (mbist_start),
-      .busy_o   (march_busy),
-      .done_o   (march_done),
-      .fail_o   (march_fail),
-      .rdata_i  (march_rdata),
-      .memaddr_o(march_addr),
-      .wdata_o  (march_wdata),
-      .membm_o  (march_bitmask),   
-      .memen_o  (march_memen),
-      .memren_o (march_memren),
-      .memwen_o (march_memwen)
+      .tdi_i            (TEST_TDI),
+      .tms_i            (TEST_TMS),
+      .tclk_i           (TEST_TCLK),
+      .trst_ni          (TEST_TRSTNI),
+      .tdo_o            (),
+      .start_i          (mbist_start),
+      .erraddr_rd_i     (mbist_erraddr_read),
+      .busy_o           (march_busy),
+      .done_o           (march_done),
+      .fail_o           (march_fail),
+      .rdata_i          (march_rdata),
+      .memaddr_o        (march_addr),
+      .wdata_o          (march_wdata),
+      .membm_o          (march_bitmask),   
+      .memen_o          (march_memen),
+      .memren_o         (march_memren),
+      .memwen_o         (march_memwen),
+      .mbist_erraddr_o  (mbist_erraddr)
   );
 
 

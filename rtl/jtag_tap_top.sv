@@ -1,19 +1,24 @@
 module jtag_tap_top #(
     parameter P_IR_WIDTH = 4,
     parameter P_IDCODE_WIDTH = 32,
+    parameter P_ADDR_WIDTH = 10,
     parameter IDCODE_VAL = 32'h1080_0786
 
 )
     (
-    input tclk_i,
-    input tms_i,
-    input trst_ni,
-    input tdi_i,
+    input                    tclk_i,
+    input                    tms_i,
+    input                    trst_ni,
+    input                    tdi_i,
 
-    output tdo_o,
-    output tdo_en_o,
+    input [P_ADDR_WIDTH-1:0] mbist_erraddr_i,
+    input                    mbist_fifo_notempty_i,
 
-    output mbist_start_o
+    output                   tdo_o,
+    output                   tdo_en_o,
+
+    output                   mbist_start_o,
+    output                   mbist_erraddr_read_o
     );
 
 
@@ -53,7 +58,8 @@ jtag_tap_controller i_tap_fsm (
 typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_IDCODE,
     INSTR_BYPASS,
-    INSTR_MBIST
+    INSTR_MBIST_START,
+    INSTR_MBIST_ERRADDR_LOAD
 } ir_type_t;
 
 
@@ -142,7 +148,7 @@ end
 
 
 always_comb begin
-    if(update_dr && (ir_latched_q == INSTR_MBIST)) begin
+    if(update_dr && (ir_latched_q == INSTR_MBIST_START)) begin
         mbist_reg_d = 1'b1;
     end
     else begin
@@ -179,6 +185,34 @@ always_comb begin
 end
 
 
+//----------------------- Error Address DR Register -------------------------
+
+logic [P_ADDR_WIDTH-1:0] err_addr_reg_q, err_addr_reg_d;
+
+always_ff @(posedge tclk_i or negedge trst_ni) begin
+    if (!trst_ni) begin
+        err_addr_reg_q <= '0;
+    end else begin
+        err_addr_reg_q <= err_addr_reg_d;
+    end
+end
+
+always_comb begin
+    err_addr_reg_d = err_addr_reg_q;
+    if (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) begin
+        if (capture_dr) begin
+            // Capture parallel erroneous address into the shift register
+            err_addr_reg_d = mbist_erraddr_i; 
+        end else if (shift_dr) begin
+            // Right-shift out via TDO while shifting in TDI
+            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
+        end
+    end
+end
+
+
+
+
 //----------------------- MUXing for TDO -------------------------
 
 logic tdo_en_q, tdo_en_d;
@@ -202,13 +236,15 @@ always_comb begin
     if(shift_ir) begin
         tdo_d = ir_shift_reg_q[0];
     end
-    else begin
+    else if (shift_dr) begin
         unique case(ir_latched_q)
-            INSTR_IDCODE: tdo_d = idcode_reg_q[0];
+            INSTR_IDCODE:              tdo_d = idcode_reg_q[0];
 
-            INSTR_BYPASS: tdo_d = bypass_reg_q;
+            INSTR_BYPASS:              tdo_d = bypass_reg_q;
 
-            default:      tdo_d = bypass_reg_q;
+            INSTR_MBIST_ERRADDR_LOAD:  tdo_d = err_addr_reg_q[0];
+
+            default:                   tdo_d = bypass_reg_q;
 
         endcase
     end
@@ -228,6 +264,6 @@ assign tdo_o = tdo_q;
 assign tdo_en_o = tdo_en_q;
 
 assign mbist_start_o = mbist_reg_q;
-
+assign mbist_erraddr_read_o = capture_dr && (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) && mbist_fifo_notempty_i;
 
 endmodule
