@@ -307,9 +307,9 @@ module tc_sram_impl #(
           bm64[2*i+1]    = bm[0][i] & addr_i[0][0];
 
           wdata64_bist[2*i]   = march_wdata[i];
-          bm64_bist[2*i]      = march_bitmask[i] & ~march_addr[0]
+          bm64_bist[2*i]      = march_bitmask[i] & ~march_addr[0];
           wdata64_bist[2*i+1] = march_wdata[i];
-          bm64_bist[2*i+1]    = march_bitmask[i] & march_addr[0]
+          bm64_bist[2*i+1]    = march_bitmask[i] & march_addr[0];
 
           if(~sel_q) begin
             rdata_o[0][i] = rdata64[2*i];   // even bits
@@ -369,9 +369,9 @@ module tc_sram_impl #(
           bm64[2*i+1]    = bm[0][i] & addr_i[0][0];
 
           wdata64_bist[2*i]   = march_wdata[i];
-          bm64_bist[2*i]      = march_bitmask[i] & ~march_addr[0]
+          bm64_bist[2*i]      = march_bitmask[i] & ~march_addr[0];
           wdata64_bist[2*i+1] = march_wdata[i];
-          bm64_bist[2*i+1]    = march_bitmask[i] & march_addr[0]
+          bm64_bist[2*i+1]    = march_bitmask[i] & march_addr[0];
 
           if(~sel_q) begin
             rdata_o[0][i] = rdata64[2*i];   // even bits
@@ -432,9 +432,9 @@ module tc_sram_impl #(
           bm64[2*i+1]    = bm[0][i] & addr_i[0][0];
 
           wdata64_bist[2*i]   = march_wdata[i];
-          bm64_bist[2*i]      = march_bitmask[i] & ~march_addr[0]
+          bm64_bist[2*i]      = march_bitmask[i] & ~march_addr[0];
           wdata64_bist[2*i+1] = march_wdata[i];
-          bm64_bist[2*i+1]    = march_bitmask[i] & march_addr[0]
+          bm64_bist[2*i+1]    = march_bitmask[i] & march_addr[0];
 
           if(~sel_q) begin
             rdata_o[0][i] = rdata64[2*i];   // even bits
