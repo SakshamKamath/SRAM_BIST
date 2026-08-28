@@ -52,6 +52,8 @@ yosys setattr -set keep_hierarchy 1 "t:cdc*phase_*$*"
 yosys setattr -set keep_hierarchy 1 "t:cdc*_src*$*"
 yosys setattr -set keep_hierarchy 1 "t:cdc*_dst*$*"
 yosys setattr -set keep_hierarchy 1 "t:sync$*"
+yosys setattr -set keep_hierarchy 1 "t:march_bist*$*"
+yosys setattr -set keep_hierarchy 1 "t:jtag_tap_top$*"
 
 
 # blackbox modules (applies the *blackbox* attribute)
