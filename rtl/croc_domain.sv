@@ -490,7 +490,15 @@ module croc_domain import croc_pkg::*; #(
 
       .wdata_i ( bank_wdata ),
       .be_i    ( bank_be    ),
-      .rdata_o ( bank_rdata )
+      .rdata_o ( bank_rdata ),
+
+      .testmode_i,
+      .tck_i   (jtag_tck_i  ),       
+      .tms_i   (jtag_tms_i  ),  
+      .trst_ni (jtag_trst_ni),
+      .td_i    (jtag_tdi_i  ),   
+      .td_o    (jtag_tdo_o  ),   
+      .tdo_oe_o()
     );
 
     assign bank_gnt = 1'b1; // always ready for request
