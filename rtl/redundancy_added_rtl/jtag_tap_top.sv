@@ -19,7 +19,9 @@ module jtag_tap_top #(
     output                   tdo_en_o,
 
     output                   mbist_start_o,
+    output                   mbist_resume_o,
     output                   mbist_erraddr_read_o
+
     );
 
 
@@ -62,6 +64,7 @@ typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_MBIST_START,
     INSTR_MBIST_STATUS_READ,
     INSTR_MBIST_ERRADDR_LOAD,
+    INSTR_MBIST_RESUME,
     INSTR_MEMORY_REPAIR
 } ir_type_t;
 
@@ -136,7 +139,7 @@ end
 
 
 
-//----------------------- MBIST Register -------------------------
+//----------------------- MBIST Start and Resume Registers -------------------------
 
 logic mbist_reg_q, mbist_reg_d;
 
@@ -159,6 +162,29 @@ always_comb begin
     end
 end
 
+
+
+
+logic mbist_resume_reg_q, mbist_resume_reg_d;
+
+always_ff @(posedge tclk_i) begin
+    if(!trst_ni) begin
+        mbist_resume_reg_q <= 1'b0;
+    end
+    else begin
+        mbist_rmbist_resume_reg_qeg_q <= mbist_resume_reg_d;
+    end
+end
+
+
+always_comb begin
+    if(update_dr && (ir_latched_q == INSTR_MBIST_RESUME)) begin
+        mbist_resume_reg_d = 1'b1;
+    end
+    else begin
+        mbist_resume_reg_d = 1'b0;
+    end
+end
 
 
 
@@ -299,5 +325,7 @@ assign tdo_en_o = tdo_en_q;
 
 assign mbist_start_o = mbist_reg_q;
 assign mbist_erraddr_read_o = capture_dr && (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) && mbist_fifo_notempty_i;
+
+assign mbist_resume_o = mbist_resume_reg_q;
 
 endmodule

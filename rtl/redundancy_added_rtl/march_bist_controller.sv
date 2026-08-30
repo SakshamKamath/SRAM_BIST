@@ -1,11 +1,13 @@
 
 
 module march_bist_controller #(
-    parameter P_DATA_WIDTH = 32,
-    parameter P_ADDR_WIDTH = 10,
-    parameter P_FIFO_DEPTH = 2,   // (2^P_FIFO_DEPTH) is the actual depth
-    //Derived Parameters
-    parameter NUM_WORDS  = 1 << P_ADDR_WIDTH
+    parameter P_DATA_WIDTH      = 32,
+    parameter P_ADDR_WIDTH      = 10,
+    parameter P_FIFO_DEPTH      = 2,   // (2^P_FIFO_DEPTH) is the actual depth,
+    parameter P_REPAIR_ELEMENTS = 2,   // Number of addresses that can be fixed
+
+    //Derived Parameters -- Do not override
+    parameter NUM_WORDS         = 1 << P_ADDR_WIDTH
 )   
     (
         //JTAG Related Signals
@@ -17,6 +19,7 @@ module march_bist_controller #(
 
         //Control Signals
         input start_i,
+        input resume_i,
         input erraddr_rd_i,
         output busy_o,
         output done_o,
@@ -89,6 +92,14 @@ logic fifo_full, fifo_empty;
 // Prevent duplicate FIFO writes for the same address
 logic read_logged_d, read_logged_q;
 
+// Registers for resumption after repair
+seq_e                    recov_seq_d, recov_seq_q;
+logic [P_ADDR_WIDTH-1:0] recov_addr_d, recov_addr_q;
+logic [1:0]              recov_sub_op_d, recov_sub_op_q;
+
+logic is_recov_downward;
+assign is_recov_downward = (recov_seq_q == STAGE_3) || (recov_seq_q == STAGE_4);
+
 always_comb begin
         seq_d         = seq_q;
         addr_d        = addr_q;
@@ -102,8 +113,8 @@ always_comb begin
         read_error    = 1'b0;
         read_logged_d = read_logged_q;
 
-    if (fifo_full && (seq_q != IDLE)) begin
-        seq_d = ERR_ABORT;
+    if (fifo_full && (seq_q != IDLE) && (seq_q != REPAIR_WAIT)) begin
+        seq_d = REPAIR_WAIT;
     end else begin
         unique case(seq_q)
             IDLE:       begin
@@ -289,13 +300,36 @@ always_comb begin
                         end
 
 
-            DONE:       begin
+            DONE:           begin
 
-                        end
+                            end
 
-            ERR_ABORT:  begin
+            REPAIR_WAIT:    begin
+                                if (resume_i) begin
+                                    sub_op_d      = 2'd0; // Reset sub-op to start fresh at the next address
+                                    read_logged_d = 1'b0;
 
-                        end
+                                    if (is_recov_downward) begin
+                                        if (recov_addr_q == '0) begin // Downward boundary check
+                                            seq_d  = (recov_seq_q == STAGE_3) ? STAGE_4 : STAGE_5;
+                                            addr_d = (recov_seq_q == STAGE_3) ? (NUM_WORDS - 1) : '0;
+                                        end else begin
+                                            seq_d  = recov_seq_q;
+                                            addr_d = recov_addr_q - 1'b1;
+                                        end
+                                    end else begin
+                                        if (recov_addr_q == NUM_WORDS - 1) begin // Upward boundary check
+                                            seq_d  = (recov_seq_q == STAGE_0) ? STAGE_1 :
+                                                     (recov_seq_q == STAGE_1) ? STAGE_2 :
+                                                     (recov_seq_q == STAGE_2) ? STAGE_3 : DONE;
+                                            addr_d = (recov_seq_q == STAGE_2) ? (NUM_WORDS - 1) : '0;
+                                        end else begin
+                                            seq_d  = recov_seq_q;
+                                            addr_d = recov_addr_q + 1'b1;
+                                        end
+                                    end
+                                end
+                            end
 
             default: seq_d = IDLE;
 

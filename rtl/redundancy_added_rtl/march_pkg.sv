@@ -8,6 +8,6 @@ package march_pkg;
     STAGE_4,
     STAGE_5,
     DONE,
-    ERR_ABORT
+    REPAIR_WAIT
   } seq_e;
 endpackage
