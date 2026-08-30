@@ -76,7 +76,7 @@ logic       read_error;
 // Address and data registers
 logic [P_DATA_WIDTH-1:0] wdata;
 logic [P_ADDR_WIDTH-1:0] addr_d, addr_q;
-
+logic [P_ADDR_WIDTH-1:0] mbist_erraddr;
 
 // To check for the first and last address
 assign is_first_addr  = (addr_q == '0); 

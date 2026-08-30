@@ -1,8 +1,8 @@
 module jtag_tap_top #(
     parameter P_IR_WIDTH = 4,
-    parameter P_IDCODE_WIDTH = 32,
-    parameter P_ADDR_WIDTH = 10,
-    parameter IDCODE_VAL = 32'h1080_0786
+    parameter IDCODE_VAL = 32'h1080_0786,
+    parameter P_ADDR_WIDTH = 10, // Also includes valid bit
+    parameter P_IDCODE_WIDTH = 32
 
 )
     (
@@ -61,7 +61,8 @@ typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_BYPASS,
     INSTR_MBIST_START,
     INSTR_MBIST_STATUS_READ,
-    INSTR_MBIST_ERRADDR_LOAD
+    INSTR_MBIST_ERRADDR_LOAD,
+    INSTR_MEMORY_REPAIR
 } ir_type_t;
 
 
@@ -204,7 +205,7 @@ always_comb begin
     if (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) begin
         if (capture_dr) begin
             // Capture parallel erroneous address into the shift register
-            err_addr_reg_d = mbist_erraddr_i; 
+            err_addr_reg_d = {mbist_fifo_notempty_i, mbist_erraddr_i}; 
         end else if (shift_dr) begin
             // Right-shift out via TDO while shifting in TDI
             err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
