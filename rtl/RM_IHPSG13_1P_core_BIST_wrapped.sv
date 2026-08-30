@@ -17,14 +17,6 @@ module RM_IHPSG13_1P_core_BIST_wrapped #(
         input                     A_DLY,
         output [P_DATA_WIDTH-1:0] A_DOUT,
 
-        // input                     A_BIST_EN,
-        // input [P_ADDR_WIDTH-1:0]  A_BIST_ADDR,
-        // input [P_DATA_WIDTH-1:0]  A_BIST_DIN,
-        // input [P_DATA_WIDTH-1:0]  A_BIST_BM,
-        // input                     A_BIST_MEN,
-        // input                     A_BIST_WEN,
-        // input                     A_BIST_REN,
-        // input                     A_BIST_CLK
 
         input                     TEST_TDI,
         input                     TEST_TCLK,
@@ -69,6 +61,7 @@ jtag_tap_top #(
     .trst_ni               (TEST_TRSTNI),
     .tdi_i                 (TEST_TDI),
     .mbist_erraddr_i       (mbist_erraddr),
+    .mbist_status_i        (march_done),
     .mbist_fifo_notempty_i (march_fail),
     .tdo_o                 (TEST_TDO),
     .tdo_en_o              (),

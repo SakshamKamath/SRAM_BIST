@@ -12,6 +12,7 @@ module jtag_tap_top #(
     input                    tdi_i,
 
     input [P_ADDR_WIDTH-1:0] mbist_erraddr_i,
+    input                    mbist_status_i,
     input                    mbist_fifo_notempty_i,
 
     output                   tdo_o,
@@ -59,6 +60,7 @@ typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_IDCODE,
     INSTR_BYPASS,
     INSTR_MBIST_START,
+    INSTR_MBIST_STATUS_READ,
     INSTR_MBIST_ERRADDR_LOAD
 } ir_type_t;
 
@@ -189,7 +191,7 @@ end
 
 logic [P_ADDR_WIDTH-1:0] err_addr_reg_q, err_addr_reg_d;
 
-always_ff @(posedge tclk_i or negedge trst_ni) begin
+always_ff @(posedge tclk_i) begin
     if (!trst_ni) begin
         err_addr_reg_q <= '0;
     end else begin
@@ -209,6 +211,35 @@ always_comb begin
         end
     end
 end
+
+
+
+//----------------------- MBIST Status DR Register -------------------------
+
+logic [1:0] mbist_status_reg_q, mbist_status_reg_d  ;
+
+always_ff @(posedge tclk_i) begin
+    if (!trst_ni) begin
+        mbist_status_reg_q <= '0;
+    end else begin
+        mbist_status_reg_q <= mbist_status_reg_d;
+    end
+end
+
+always_comb begin
+    mbist_status_reg_d = mbist_status_reg_q;
+    if (ir_latched_q == INSTR_MBIST_STATUS_READ) begin
+        if (capture_dr) begin
+            // Capture parallel mbist status into the shift register
+            mbist_status_reg_d = {mbist_fifo_notempty_i, mbist_status_i}; 
+        end else if (shift_dr) begin
+            // Right-shift out via TDO while shifting in TDI
+            mbist_status_reg_d = {tdi_i, mbist_status_reg_q[1]};
+        end
+    end
+end
+
+
 
 
 
@@ -243,6 +274,8 @@ always_comb begin
             INSTR_BYPASS:              tdo_d = bypass_reg_q;
 
             INSTR_MBIST_ERRADDR_LOAD:  tdo_d = err_addr_reg_q[0];
+
+            INSTR_MBIST_STATUS_READ:   tdo_d = mbist_status_reg_q[0];
 
             default:                   tdo_d = bypass_reg_q;
 
