@@ -2,6 +2,7 @@ module jtag_tap_top #(
     parameter P_IR_WIDTH = 4,
     parameter IDCODE_VAL = 32'h1080_0786,
     parameter P_ADDR_WIDTH = 10, // Also includes valid bit
+    parameter P_DATA_WIDTH = 32,
     parameter P_IDCODE_WIDTH = 32
 
 )
@@ -14,6 +15,7 @@ module jtag_tap_top #(
     input [P_ADDR_WIDTH-1:0] mbist_erraddr_i,
     input                    mbist_status_i,
     input                    mbist_fifo_notempty_i,
+    input [P_DATA_WIDTH-1:0] mem_rdata_i,
 
     output                   tdo_o,
     output                   tdo_en_o,
@@ -65,7 +67,8 @@ typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_MBIST_STATUS_READ,
     INSTR_MBIST_ERRADDR_LOAD,
     INSTR_MBIST_RESUME,
-    INSTR_MEMORY_REPAIR
+    INSTR_MEMORY_REPAIR,
+    INSTR_MEM_ISOLATION
 } ir_type_t;
 
 
@@ -268,6 +271,72 @@ end
 
 
 
+//----------------------- Memory Isolation -------------------------
+
+typedef struct packed {
+    logic [P_ADDR_WIDTH-1:0] addr;
+    logic [P_DATA_WIDTH-1:0] data;
+    logic [P_DATA_WIDTH-1:0] bm;
+} repair_isol_t;
+
+typedef struct packed {
+    repair_isol_t            redundancy;
+    logic                    bist_en;
+    logic                    men;
+    logic                    wen;
+    logic                    ren;
+} mem_isol_t;
+
+localparam int IsolBitWidth = $bits(mem_isol_t);
+
+mem_isol_t mem_isol_d, mem_isol_q;
+
+
+always_ff @(posedge tclk_i) begin
+    if (!trst_ni) begin
+        mem_isol_q <= '0;
+    end else begin
+        mem_isol_q <= mem_isol_d;
+    end
+end
+
+always_comb begin
+    mem_isol_d = mem_isol_q;
+    if (ir_latched_q == INSTR_MEM_ISOLATION) begin
+        if (capture_dr) begin
+            // Capture parallel mbist status into the shift register
+            mem_isol_d.redundancy.data = mem_rdata_i; 
+        end else if (shift_dr) begin
+            // Right-shift out via TDO while shifting in TDI
+            mem_isol_d = {tdi_i, mem_isol_q[IsolBitWidth-1:1]};
+        end
+    end
+end
+
+// Latch the relevant bits for controlling memory ports
+
+mem_isol_t mem_isol_shadow_d, mem_isol_shadow_q;
+
+
+always_ff @(posedge tclk_i) begin
+    if (!trst_ni) begin
+        mem_isol_shadow_q <= '0;
+    end else begin
+        mem_isol_shadow_q <= mem_isol_shadow_d;
+    end
+end
+
+always_comb begin
+    if (ir_latched_q == INSTR_MEM_ISOLATION) begin
+        if (update_dr) begin
+            mem_isol_shadow_d = mem_isol_q;        // Capture new shift values
+        end else begin
+            mem_isol_shadow_d = mem_isol_shadow_q; // Hold current memory drive state
+        end
+    end else begin
+        mem_isol_shadow_d = '0;                    // Clear pins when instruction exits
+    end
+end
 
 
 
@@ -303,6 +372,8 @@ always_comb begin
             INSTR_MBIST_ERRADDR_LOAD:  tdo_d = err_addr_reg_q[0];
 
             INSTR_MBIST_STATUS_READ:   tdo_d = mbist_status_reg_q[0];
+
+            INSTR_MEM_ISOLATION:       tdo_d = mem_isol_q[0];
 
             default:                   tdo_d = bypass_reg_q;
 
