@@ -7,23 +7,29 @@ module jtag_tap_top #(
 
 )
     (
-    input                    tclk_i,
-    input                    tms_i,
-    input                    trst_ni,
-    input                    tdi_i,
+    input                     tclk_i,
+    input                     tms_i,
+    input                     trst_ni,
+    input                     tdi_i,
 
-    input [P_ADDR_WIDTH-1:0] mbist_erraddr_i,
-    input                    mbist_status_i,
-    input                    mbist_fifo_notempty_i,
-    input [P_DATA_WIDTH-1:0] mem_rdata_i,
+    input [P_ADDR_WIDTH-1:0]  mbist_erraddr_i,
+    input                     mbist_status_i,
+    input                     mbist_fifo_notempty_i,
+    input [P_DATA_WIDTH-1:0]  mem_rdata_i,
 
-    output                   tdo_o,
-    output                   tdo_en_o,
+    output                    tdo_o,
+    output                    tdo_en_o, 
 
-    output                   mbist_start_o,
-    output                   mbist_resume_o,
-    output                   mbist_erraddr_read_o
+    output                    mbist_start_o,
+    output                    mbist_resume_o,
+    output                    mbist_erraddr_read_o,
 
+    output [P_ADDR_WIDTH-1:0] isol_addr,
+    output [P_DATA_WIDTH-1:0] isol_data,
+    output                    isol_bist_en,
+    output                    isol_men,
+    output                    isol_wen,
+    output                    isol_ren
     );
 
 
@@ -217,33 +223,6 @@ always_comb begin
 end
 
 
-//----------------------- Error Address DR Register -------------------------
-
-logic [P_ADDR_WIDTH-1:0] err_addr_reg_q, err_addr_reg_d;
-
-always_ff @(posedge tclk_i) begin
-    if (!trst_ni) begin
-        err_addr_reg_q <= '0;
-    end else begin
-        err_addr_reg_q <= err_addr_reg_d;
-    end
-end
-
-always_comb begin
-    err_addr_reg_d = err_addr_reg_q;
-    if (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) begin
-        if (capture_dr) begin
-            // Capture parallel erroneous address into the shift register
-            err_addr_reg_d = {mbist_fifo_notempty_i, mbist_erraddr_i}; 
-        end else if (shift_dr) begin
-            // Right-shift out via TDO while shifting in TDI
-            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
-        end
-    end
-end
-
-
-
 //----------------------- MBIST Status DR Register -------------------------
 
 logic [1:0] mbist_status_reg_q, mbist_status_reg_d  ;
@@ -269,12 +248,41 @@ always_comb begin
     end
 end
 
+//----------------------- Error Address DR Register -------------------------
 
+logic [P_ADDR_WIDTH-1:0] err_addr_reg_q, err_addr_reg_d;
+
+always_ff @(posedge tclk_i) begin
+    if (!trst_ni) begin
+        err_addr_reg_q <= '0;
+    end else begin
+        err_addr_reg_q <= err_addr_reg_d;
+    end
+end
+
+always_comb begin
+    err_addr_reg_d = err_addr_reg_q;
+    if (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) begin
+        if (capture_dr) begin
+            // Capture parallel erroneous address into the shift register
+            err_addr_reg_d = {mbist_fifo_notempty_i, mbist_erraddr_i}; 
+        end else if (shift_dr) begin
+            // Right-shift out via TDO while shifting in TDI
+            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
+        end
+    end
+    else if (ir_latched_q == INSTR_MEMORY_REPAIR) begin
+        if (shift_dr) begin
+            // Shift TDI into err_addr_reg_q
+            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
+        end
+    end
+end
 
 //----------------------- Memory Isolation -------------------------
 
 typedef struct packed {
-    logic [P_ADDR_WIDTH-1:0] addr;
+    logic [P_ADDR_WIDTH:0]   addr;
     logic [P_DATA_WIDTH-1:0] data;
     logic [P_DATA_WIDTH-1:0] bm;
 } repair_isol_t;
@@ -309,6 +317,12 @@ always_comb begin
         end else if (shift_dr) begin
             // Right-shift out via TDO while shifting in TDI
             mem_isol_d = {tdi_i, mem_isol_q[IsolBitWidth-1:1]};
+        end
+    end
+    else if (ir_latched_q == INSTR_MEMORY_REPAIR) begin
+        if (shift_dr) begin
+            // Shift LSB of err_addr_reg_q into MSB of mem_isol_q
+            mem_isol_d = {err_addr_reg_q[0], mem_isol_q[IsolBitWidth-1:1]};
         end
     end
 end
@@ -375,6 +389,8 @@ always_comb begin
 
             INSTR_MEM_ISOLATION:       tdo_d = mem_isol_q[0];
 
+            INSTR_MEMORY_REPAIR:       tdo_d = mem_isol_q[0];
+
             default:                   tdo_d = bypass_reg_q;
 
         endcase
@@ -398,5 +414,14 @@ assign mbist_start_o = mbist_reg_q;
 assign mbist_erraddr_read_o = capture_dr && (ir_latched_q == INSTR_MBIST_ERRADDR_LOAD) && mbist_fifo_notempty_i;
 
 assign mbist_resume_o = mbist_resume_reg_q;
+
+assign isol_addr     = mem_isol_shadow_q.addr;
+assign isol_data     = mem_isol_shadow_q.data;
+assign isol_bist_en  = mem_isol_shadow_q.bist_en;
+assign isol_men      = mem_isol_shadow_q.men;
+assign isol_wen      = mem_isol_shadow_q.wen;
+assign isol_ren      = mem_isol_shadow_q.ren;
+
+
 
 endmodule
