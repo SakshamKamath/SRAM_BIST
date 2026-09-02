@@ -17,6 +17,13 @@ module jtag_tap_top #(
     input                     mbist_fifo_notempty_i,
     input [P_DATA_WIDTH-1:0]  mem_rdata_i,
 
+    input [P_ADDR_WIDTH-1:0]  repair_addr_i,
+    input                     repair_men_i,
+    input                     repair_wen_i,
+    input                     repair_ren_i,
+    input                     repair_bm_i,
+    input [P_DATA_WIDTH-1:0]  repair_wdata_i,
+
     output                    tdo_o,
     output                    tdo_en_o, 
 
@@ -24,12 +31,27 @@ module jtag_tap_top #(
     output                    mbist_resume_o,
     output                    mbist_erraddr_read_o,
 
-    output [P_ADDR_WIDTH-1:0] isol_addr,
-    output [P_DATA_WIDTH-1:0] isol_data,
-    output                    isol_bist_en,
-    output                    isol_men,
-    output                    isol_wen,
-    output                    isol_ren
+    // Goes to the BIST interface of the memory
+    output [P_ADDR_WIDTH-1:0] isol_addr_o,
+    output [P_DATA_WIDTH-1:0] isol_data_o,
+    output [P_DATA_WIDTH-1:0] isol_bm_o,
+    output                    isol_bist_en_o,
+    output                    isol_men_o,
+    output                    isol_wen_o,
+    output                    isol_ren_o,
+
+    //Goes to the system bus from the repair element
+    output [P_DATA_WIDTH-1:0] repair_rdata_o, 
+
+    //Go to the memory functional interface
+    output [P_ADDR_WIDTH-1:0] bypass_addr_o, 
+    output [P_DATA_WIDTH-1:0] bypass_data_o, 
+    output [P_DATA_WIDTH-1:0] bypass_bm_o,
+    output                    bypass_men_o,
+    output                    bypass_wen_o,
+    output                    bypass_ren_o
+
+
     );
 
 
@@ -72,7 +94,7 @@ typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_MBIST_START,
     INSTR_MBIST_STATUS_READ,
     INSTR_MBIST_ERRADDR_LOAD,
-    INSTR_MBIST_RESUME,
+    INSTR_MBIST_RESUME_OR_RESET,
     INSTR_MEMORY_REPAIR,
     INSTR_MEM_ISOLATION
 } ir_type_t;
@@ -181,13 +203,13 @@ always_ff @(posedge tclk_i) begin
         mbist_resume_reg_q <= 1'b0;
     end
     else begin
-        mbist_rmbist_resume_reg_qeg_q <= mbist_resume_reg_d;
+        mbist_resume_reg_q <= mbist_resume_reg_d;
     end
 end
 
 
 always_comb begin
-    if(update_dr && (ir_latched_q == INSTR_MBIST_RESUME)) begin
+    if(update_dr && (ir_latched_q == INSTR_MBIST_RESUME_OR_RESET)) begin
         mbist_resume_reg_d = 1'b1;
     end
     else begin
@@ -250,7 +272,12 @@ end
 
 //----------------------- Error Address DR Register -------------------------
 
-logic [P_ADDR_WIDTH-1:0] err_addr_reg_q, err_addr_reg_d;
+typedef struct packed {
+    logic                      valid;
+    logic [P_ADDR_WIDTH-1:0]   addr;
+} addr_t;
+
+addr_t err_addr_reg_q, err_addr_reg_d;
 
 always_ff @(posedge tclk_i) begin
     if (!trst_ni) begin
@@ -268,21 +295,18 @@ always_comb begin
             err_addr_reg_d = {mbist_fifo_notempty_i, mbist_erraddr_i}; 
         end else if (shift_dr) begin
             // Right-shift out via TDO while shifting in TDI
-            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
-        end
-    end
-    else if (ir_latched_q == INSTR_MEMORY_REPAIR) begin
-        if (shift_dr) begin
-            // Shift TDI into err_addr_reg_q
-            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH-1:1]};
+            err_addr_reg_d = {tdi_i, err_addr_reg_q[P_ADDR_WIDTH:1]};
         end
     end
 end
 
 //----------------------- Memory Isolation -------------------------
 
+
+
+
 typedef struct packed {
-    logic [P_ADDR_WIDTH:0]   addr;
+    addr_t   vaddr;
     logic [P_DATA_WIDTH-1:0] data;
     logic [P_DATA_WIDTH-1:0] bm;
 } repair_isol_t;
@@ -298,6 +322,13 @@ typedef struct packed {
 localparam int IsolBitWidth = $bits(mem_isol_t);
 
 mem_isol_t mem_isol_d, mem_isol_q;
+
+
+// Address hit detection based solely on validity and matching address
+logic rep_hit;
+assign rep_hit = mem_isol_q.redundancy.vaddr.valid && 
+                (repair_addr_i == mem_isol_q.redundancy.vaddr.addr);
+
 
 
 always_ff @(posedge tclk_i) begin
@@ -322,8 +353,14 @@ always_comb begin
     else if (ir_latched_q == INSTR_MEMORY_REPAIR) begin
         if (shift_dr) begin
             // Shift LSB of err_addr_reg_q into MSB of mem_isol_q
-            mem_isol_d = {err_addr_reg_q[0], mem_isol_q[IsolBitWidth-1:1]};
+            mem_isol_d = {tdi_i, mem_isol_q[IsolBitWidth-1:1]};
         end
+    end
+
+
+    //Remap based on valid addr in repair element 1
+    if (rep_hit && repair_wen_i) begin
+        mem_isol_d.redundancy.data = repair_wdata_i;
     end
 end
 
@@ -392,7 +429,6 @@ always_comb begin
             INSTR_MEMORY_REPAIR:       tdo_d = mem_isol_q[0];
 
             default:                   tdo_d = bypass_reg_q;
-
         endcase
     end
 end 
@@ -400,6 +436,45 @@ end
 
 always_comb begin
     tdo_en_d = shift_ir || shift_dr;
+end
+
+
+
+//----------------------- Redundancy and Bypass logic -------------------------
+
+logic [P_ADDR_WIDTH-1:0] bypass_addr;  
+logic [P_DATA_WIDTH-1:0] bypass_data;  
+logic [P_DATA_WIDTH-1:0] bypass_bm; 
+logic                    bypass_men;
+logic                    bypass_wen;
+logic                    bypass_ren;
+
+logic [P_DATA_WIDTH-1:0] repair_rdata; 
+
+// Bypass the signals to memory if valid bit 0 else read/write from repair elements
+
+always_comb begin
+    // Pass-through standard inputs
+    bypass_addr  = repair_addr_i;
+    bypass_data  = repair_wdata_i;
+    bypass_bm    = repair_bm_i;
+    bypass_men   = repair_men_i;
+    bypass_wen   = repair_wen_i;
+    bypass_ren   = repair_ren_i;
+    repair_rdata = mem_rdata_i;
+
+    // Remap whenever address hits and repair entry is valid (Irrespective of ir_latched_q)
+    if (rep_hit) begin
+        if (repair_ren_i) begin
+            repair_rdata = mem_isol_q.redundancy.data;   // Serve from existing register
+            bypass_ren   = 1'b0;                         // Inhibit main memory read
+            bypass_men   = 1'b0;
+        end
+        if (repair_wen_i) begin
+            bypass_wen   = 1'b0;                         // Inhibit main memory write
+            bypass_men   = 1'b0;
+        end
+    end
 end
 
 
@@ -415,13 +490,21 @@ assign mbist_erraddr_read_o = capture_dr && (ir_latched_q == INSTR_MBIST_ERRADDR
 
 assign mbist_resume_o = mbist_resume_reg_q;
 
-assign isol_addr     = mem_isol_shadow_q.addr;
-assign isol_data     = mem_isol_shadow_q.data;
-assign isol_bist_en  = mem_isol_shadow_q.bist_en;
-assign isol_men      = mem_isol_shadow_q.men;
-assign isol_wen      = mem_isol_shadow_q.wen;
-assign isol_ren      = mem_isol_shadow_q.ren;
+assign isol_addr_o     = mem_isol_shadow_q.redundancy.vaddr.addr;
+assign isol_data_o     = mem_isol_shadow_q.redundancy.data;
+assign isol_bm_o       = mem_isol_shadow_q.redundancy.bm;
+assign isol_bist_en_o  = mem_isol_shadow_q.bist_en;
+assign isol_men_o      = mem_isol_shadow_q.men;
+assign isol_wen_o      = mem_isol_shadow_q.wen;
+assign isol_ren_o      = mem_isol_shadow_q.ren;
+
+assign bypass_addr_o  = bypass_addr;
+assign bypass_data_o  = bypass_data;
+assign bypass_bm_o    = bypass_bm  ;
+assign bypass_men_o   = bypass_men ;
+assign bypass_wen_o   = bypass_wen ;
+assign bypass_ren_o   = bypass_ren ;
 
 
-
+assign repair_rdata_o = repair_rdata;
 endmodule

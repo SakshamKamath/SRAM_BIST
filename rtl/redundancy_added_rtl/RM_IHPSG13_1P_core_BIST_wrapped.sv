@@ -28,7 +28,7 @@ module RM_IHPSG13_1P_core_BIST_wrapped #(
 
 
 // Signals required for connecting
-logic mbist_start, mbist_erraddr_read;
+logic mbist_start, mbist_erraddr_read, march_resume_or_reset;
 
 // Signals driven by march controller
 logic [P_ADDR_WIDTH-1:0] march_addr;
@@ -42,6 +42,22 @@ logic                    march_fail;
 logic                    march_done;
 logic [P_ADDR_WIDTH-1:0] mbist_erraddr;
 
+// Isolation Signals
+logic [P_ADDR_WIDTH-1:0] isol_addr;
+logic [P_DATA_WIDTH-1:0] isol_wdata;
+logic                    isol_bist_en;
+logic [P_DATA_WIDTH-1:0] isol_bitmask;
+logic                    isol_memen;
+logic                    isol_memwen;
+logic                    isol_memren;
+
+//Bypass or Repair signals
+logic [P_ADDR_WIDTH-1:0] bypass_addr;
+logic [P_DATA_WIDTH-1:0] bypass_data;
+logic [P_DATA_WIDTH-1:0] bypass_bm  ;
+logic                    bypass_men ;
+logic                    bypass_wen ;
+logic                    bypass_ren ;
 
 
 // Buffering for signal renaming and better understanding
@@ -53,7 +69,7 @@ assign march_rdata = A_DOUT;
 jtag_tap_top #(
     .P_IR_WIDTH(P_IR_WIDTH),
     .P_IDCODE_WIDTH(P_IDCODE_WIDTH),
-    .P_ADDR_WIDTH(P_ADDR_WIDTH+1),
+    .P_ADDR_WIDTH(P_ADDR_WIDTH),
     .IDCODE_VAL(IDCODE_VAL)
 ) i_jtag_tap_top (
     .tclk_i                (TEST_TCLK),
@@ -63,10 +79,32 @@ jtag_tap_top #(
     .mbist_erraddr_i       (mbist_erraddr),
     .mbist_status_i        (march_done),
     .mbist_fifo_notempty_i (march_fail),
+    .mem_rdata_i           (rdata),
+    .repair_addr_i         (A_ADDR),
+    .repair_men_i          (A_MEN ),
+    .repair_wen_i          (A_WEN ),
+    .repair_ren_i          (A_REN ),
+    .repair_bm_i           (A_BM  ),
+    .repair_wdata_i        (A_DIN ),
     .tdo_o                 (TEST_TDO),
     .tdo_en_o              (),
     .mbist_start_o         (mbist_start),
-    .mbist_erraddr_read_o  (mbist_erraddr_read)
+    .mbist_resume_o        (march_resume_or_reset),
+    .mbist_erraddr_read_o  (mbist_erraddr_read),
+    .isol_addr_o           (isol_addr),
+    .isol_data_o           (isol_wdata),
+    .isol_bm_o             (isol_bitmask),
+    .isol_bist_en_o        (isol_bist_en),
+    .isol_men_o            (isol_memen),
+    .isol_wen_o            (isol_memwen),
+    .isol_ren_o            (isol_memren),
+    .repair_rdata_o        (A_DOUT),
+    .bypass_addr_o         (bypass_addr),
+    .bypass_data_o         (bypass_data),
+    .bypass_bm_o           (bypass_bm),
+    .bypass_men_o          (bypass_men),
+    .bypass_wen_o          (bypass_wen),
+    .bypass_ren_o          (bypass_ren)
 );
 
 
@@ -81,6 +119,7 @@ jtag_tap_top #(
       .trst_ni          (TEST_TRSTNI),
       .tdo_o            (),
       .start_i          (mbist_start),
+      .resume_or_reset_i(march_resume_or_reset),
       .erraddr_rd_i     (mbist_erraddr_read),
       .busy_o           (march_busy),
       .done_o           (march_done),
@@ -116,6 +155,7 @@ jtag_tap_top #(
   
 // -----------------------------------------------------------------------------------
 
+logic [P_DATA_WIDTH-1:0] rdata;
 
  SRAM_1P_behavioral_bm_bist #(
       .P_DATA_WIDTH      (P_DATA_WIDTH),
@@ -125,17 +165,17 @@ jtag_tap_top #(
       .MASK_TF_01        (MY_TF_01),
       .MASK_RDF          (MY_RDF)
   ) u_sram_mem (
-      .A_ADDR    (A_ADDR),
-      .A_DIN     (A_DIN),
-      .A_BM      (A_BM),
-      .A_MEN     (A_MEN),
-      .A_WEN     (A_WEN),
-      .A_REN     (A_REN),
+      .A_ADDR    (bypass_addr),
+      .A_DIN     (bypass_data),
+      .A_BM      (bypass_bm  ),
+      .A_MEN     (bypass_men ),
+      .A_WEN     (bypass_wen ),
+      .A_REN     (bypass_ren ),
       .A_CLK     (A_CLK),
       .A_DLY     (1'b0),
-      .A_DOUT    (A_DOUT),
+      .A_DOUT    (rdata),
 
-      .A_BIST_EN  (march_busy),
+      .A_BIST_EN  (march_busy | isol_bist_en),
       .A_BIST_ADDR(march_addr),
       .A_BIST_DIN (march_wdata),
       .A_BIST_BM  (march_bitmask),

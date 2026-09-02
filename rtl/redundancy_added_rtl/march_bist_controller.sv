@@ -19,7 +19,7 @@ module march_bist_controller #(
 
         //Control Signals
         input start_i,
-        input resume_i,
+        input resume_or_reset_i,
         input erraddr_rd_i,
         output busy_o,
         output done_o,
@@ -94,8 +94,7 @@ logic read_logged_d, read_logged_q;
 
 // Registers for resumption after repair
 seq_e                    recov_seq_d, recov_seq_q;
-logic [P_ADDR_WIDTH-1:0] recov_addr_d, recov_addr_q;
-logic [1:0]              recov_sub_op_d, recov_sub_op_q;
+// logic [P_ADDR_WIDTH-1:0] recov_addr_d, recov_addr_q;
 
 logic is_recov_downward;
 assign is_recov_downward = (recov_seq_q == STAGE_3) || (recov_seq_q == STAGE_4);
@@ -113,8 +112,14 @@ always_comb begin
         read_error    = 1'b0;
         read_logged_d = read_logged_q;
 
+        recov_seq_d    = recov_seq_q;
+        // recov_addr_d   = recov_addr_q;
+
     if (fifo_full && (seq_q != IDLE) && (seq_q != REPAIR_WAIT)) begin
         seq_d = REPAIR_WAIT;
+        recov_seq_d    = seq_q;
+        // recov_addr_d   = addr_q;
+        // recov_sub_op_d = sub_op_q;
     end else begin
         unique case(seq_q)
             IDLE:       begin
@@ -301,31 +306,37 @@ always_comb begin
 
 
             DONE:           begin
-
+                                if(resume_or_reset_i) begin
+                                    seq_d = IDLE;
+                                end
                             end
 
             REPAIR_WAIT:    begin
-                                if (resume_i) begin
+                                if (resume_or_reset_i) begin
                                     sub_op_d      = 2'd0; // Reset sub-op to start fresh at the next address
                                     read_logged_d = 1'b0;
 
                                     if (is_recov_downward) begin
-                                        if (recov_addr_q == '0) begin // Downward boundary check
+                                        // if (recov_addr_q == '0) begin // Downward boundary check
+                                        if (addr_q == '0) begin // Downward boundary check
                                             seq_d  = (recov_seq_q == STAGE_3) ? STAGE_4 : STAGE_5;
                                             addr_d = (recov_seq_q == STAGE_3) ? (NUM_WORDS - 1) : '0;
                                         end else begin
                                             seq_d  = recov_seq_q;
-                                            addr_d = recov_addr_q - 1'b1;
+                                            // addr_d = recov_addr_q - 1'b1;
+                                            addr_d = addr_q - 1'b1;
                                         end
                                     end else begin
-                                        if (recov_addr_q == NUM_WORDS - 1) begin // Upward boundary check
+                                        // if (recov_addr_q == NUM_WORDS - 1) begin // Upward boundary check
+                                        if (addr_q == NUM_WORDS - 1) begin // Upward boundary check
                                             seq_d  = (recov_seq_q == STAGE_0) ? STAGE_1 :
                                                      (recov_seq_q == STAGE_1) ? STAGE_2 :
                                                      (recov_seq_q == STAGE_2) ? STAGE_3 : DONE;
                                             addr_d = (recov_seq_q == STAGE_2) ? (NUM_WORDS - 1) : '0;
                                         end else begin
                                             seq_d  = recov_seq_q;
-                                            addr_d = recov_addr_q + 1'b1;
+                                            // addr_d = recov_addr_q + 1'b1;
+                                            addr_d = addr_q + 1'b1;
                                         end
                                     end
                                 end
@@ -394,12 +405,19 @@ if (!trst_ni) begin
         sub_op_q      <= '0;
         err_q         <= 1'b0;
         read_logged_q <= 1'b0;
+
+        recov_seq_q    <= IDLE;
+        // recov_addr_q   <= '0;
+        
     end else begin
         seq_q         <= seq_d;
         addr_q        <= addr_d;
         sub_op_q      <= sub_op_d;
         err_q         <= err_d;
         read_logged_q <= read_logged_d;
+
+        recov_seq_q    <= recov_seq_d;
+        // recov_addr_q   <= recov_addr_d;
     end
 end
 
@@ -408,7 +426,7 @@ end
 assign tdo_o     = tdi_i;
 assign done_o    = (seq_q == DONE);
 assign memaddr_o = addr_q;
-assign busy_o    = (seq_q != IDLE) && (seq_q != DONE) && (seq_q != ERR_ABORT);
+assign busy_o    = (seq_q != IDLE) && (seq_q != DONE);
 assign wdata_o   = wdata;
 assign memwen_o  = wen;
 assign memren_o  = ren;
