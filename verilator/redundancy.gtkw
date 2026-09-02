@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v4.0.0-prealpha (8ba24ab) (w)1999-2022 BSI
-[*] Wed Sep  2 17:19:54 2026
+[*] Wed Sep  2 19:25:22 2026
 [*]
 [dumpfile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/obj_dir/tb_redundancy.fst"
-[dumpfile_mtime] "Wed Sep  2 17:17:49 2026"
-[dumpfile_size] 9955
+[dumpfile_mtime] "Wed Sep  2 19:24:53 2026"
+[dumpfile_size] 14446
 [savefile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/redundancy.gtkw"
-[timestart] 4164
+[timestart] 0
 [size] 1427 600
-[pos] 17 26
-*-6.000000 3865 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[pos] 49 26
+*-6.000000 6745 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -39,6 +39,8 @@
 [treeopen] tb_redundancy.
 [treeopen] tb_redundancy.u_dut.
 [treeopen] tb_redundancy.u_dut.i_jtag_tap_top.
+[treeopen] tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.
+[treeopen] tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.
 [treeopen] tb_redundancy.u_dut.u_bist_controller.
 [treeopen] tb_redundancy.u_dut.u_bist_controller.gen_fifo_enabled.
 [sst_width] 297
@@ -58,6 +60,20 @@ tb_redundancy.u_dut.i_jtag_tap_top.tdo_o
 tb_redundancy.u_dut.i_jtag_tap_top.ir_latched_q[3:0]
 tb_redundancy.u_dut.i_jtag_tap_top.i_tap_fsm.state_q[3:0]
 @200
+-Isolation Signals
+@28
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.vaddr.valid
+@22
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.vaddr.addr[3:0]
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.data[23:0]
+@23
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.bm[23:0]
+@28
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.bist_en
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.men
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.ren
+tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.wen
+@200
 -March Signals
 @100000028
 tb_redundancy.u_dut.u_bist_controller.seq_q[3:0]
@@ -75,7 +91,6 @@ tb_redundancy.u_dut.u_bist_controller.gen_fifo_enabled.u_err_fifo.memfifo[2][3:0
 tb_redundancy.u_dut.u_bist_controller.gen_fifo_enabled.u_err_fifo.memfifo[3][3:0]
 @28
 tb_redundancy.u_dut.u_bist_controller.gen_fifo_enabled.u_err_fifo.empty_o
-@29
 tb_redundancy.u_dut.u_bist_controller.gen_fifo_enabled.u_err_fifo.full_o
 [pattern_trace] 1
 [pattern_trace] 0

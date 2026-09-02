@@ -70,6 +70,7 @@ jtag_tap_top #(
     .P_IR_WIDTH(P_IR_WIDTH),
     .P_IDCODE_WIDTH(P_IDCODE_WIDTH),
     .P_ADDR_WIDTH(P_ADDR_WIDTH),
+    .P_DATA_WIDTH(P_DATA_WIDTH),
     .IDCODE_VAL(IDCODE_VAL)
 ) i_jtag_tap_top (
     .tclk_i                (TEST_TCLK),

@@ -153,8 +153,8 @@ task jtag_shift_dr(
 endtask
 
 task automatic jtag_write_dr(
-    input  logic [14:0] dr_in,  // Data to shift in via TDI
-    output logic [14:0] dr_out, // Data shifted out via TDO
+    input  logic [127:0] dr_in,  // Data to shift in via TDI
+    output logic [127:0] dr_out, // Data shifted out via TDO
     input  integer      dr_len  // Length of the DR chain in bits
 );
   integer i;
@@ -193,8 +193,16 @@ task automatic jtag_write_dr(
   end
 endtask
 
+function automatic logic [IsolBitWidth-1:0] reverse_bits(input logic [IsolBitWidth-1:0] in_payload);
+  logic [IsolBitWidth-1:0] rev;
+  for (int i = 0; i < IsolBitWidth; i++) begin
+    rev[i] = in_payload[IsolBitWidth - 1 - i];
+  end
+  return rev;
+endfunction
 
-logic [14:0] dr_captured;
+
+logic [127:0] dr_captured;
 
 typedef enum logic [P_IR_WIDTH-1:0] {
     INSTR_IDCODE,
@@ -239,8 +247,8 @@ typedef struct packed {
 } mem_isol_t;
 
 localparam int IsolBitWidth = $bits(mem_isol_t);
-    mem_isol_t test_payload;
-logic [IsolBitWidth-1:0] captured_payload;
+mem_isol_t test_payload;
+logic [127:0] captured_payload;
 
 initial begin
     $dumpfile("tb_redundancy.fst");
@@ -351,7 +359,7 @@ initial begin
     // TEST 1: WRITE & SHADOW UPDATE (Verify internal shift and shadow registers)
     // =========================================================================
     test_payload.redundancy.vaddr.valid = 1'b1;
-    test_payload.redundancy.vaddr.addr  = 'h2A5; // Match P_ADDR_WIDTH
+    test_payload.redundancy.vaddr.addr  = 'h5; // Match P_ADDR_WIDTH
     test_payload.redundancy.data        = 'hDEADBEEF;
     test_payload.redundancy.bm          = 'hFFFFFFFF;
     test_payload.bist_en                = 1'b1;
@@ -361,7 +369,7 @@ initial begin
 
     $display("[%0t ns] [TB] Shifting Test Payload into DR...", $time);
     // Dummy response variable used for JTAG task compatibility
-    jtag_write_dr(test_payload, captured_payload, IsolBitWidth);
+    jtag_write_dr(128'(test_payload), captured_payload, IsolBitWidth);
 
     // 1a. Check internal shift register (mem_isol_q) right after Shift-DR completes
     if (u_dut.i_jtag_tap_top.mem_isol_q === test_payload) begin
@@ -397,14 +405,14 @@ initial begin
     // --- STEP 1: Apply Read Address and Assert Read Enable ---
     test_payload                       = '0;
     test_payload.redundancy.vaddr.valid = 1'b1;
-    test_payload.redundancy.vaddr.addr  = 10'h0A5; // Target Memory Address
+    test_payload.redundancy.vaddr.addr  = 10'h5; // Target Memory Address
     test_payload.bist_en                = 1'b1;
     test_payload.men                    = 1'b1;
     test_payload.ren                    = 1'b1;   // Assert Read Enable
     test_payload.wen                    = 1'b0;
     
     $display("[%0t ns] [TB] Issue Read Command to RAM via JTAG DR...", $time);
-    jtag_write_dr(test_payload, captured_payload, IsolBitWidth);
+    jtag_write_dr((test_payload), captured_payload, IsolBitWidth);
     
     // Wait 1 clock cycle for Update-DR to latch into mem_isol_shadow_q 
     // and for memory to respond with mem_rdata_i
@@ -469,7 +477,7 @@ initial begin
 
 
 // -----------------------------------------------------------------
-    #200;
+    #2000;
     $finish;
 
 end
