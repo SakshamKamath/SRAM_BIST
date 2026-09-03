@@ -158,6 +158,27 @@ jtag_tap_top #(
 
 logic [P_DATA_WIDTH-1:0] rdata;
 
+// Muxed BIST signals that will actually drive the SRAM instance
+logic [P_ADDR_WIDTH-1:0] bist_mux_addr;
+logic [P_DATA_WIDTH-1:0] bist_mux_wdata;
+logic [P_DATA_WIDTH-1:0] bist_mux_bitmask;
+logic                    bist_mux_memen;
+logic                    bist_mux_memwen;
+logic                    bist_mux_memren;
+
+
+// If isol_bist_en is active, route JTAG isolation signals to SRAM.
+// Otherwise, route March BIST Controller signals to SRAM.
+assign bist_mux_addr    = (isol_bist_en) ? isol_addr    : march_addr;
+assign bist_mux_wdata   = (isol_bist_en) ? isol_wdata   : march_wdata;
+assign bist_mux_bitmask = (isol_bist_en) ? isol_bitmask : march_bitmask;
+assign bist_mux_memen   = (isol_bist_en) ? isol_memen   : march_memen;
+assign bist_mux_memwen  = (isol_bist_en) ? isol_memwen  : march_memwen;
+assign bist_mux_memren  = (isol_bist_en) ? isol_memren  : march_memren;
+
+
+
+
  SRAM_1P_behavioral_bm_bist #(
       .P_DATA_WIDTH      (P_DATA_WIDTH),
       .P_ADDR_WIDTH      (P_ADDR_WIDTH),
@@ -177,12 +198,12 @@ logic [P_DATA_WIDTH-1:0] rdata;
       .A_DOUT    (rdata),
 
       .A_BIST_EN  (march_busy | isol_bist_en),
-      .A_BIST_ADDR(march_addr),
-      .A_BIST_DIN (march_wdata),
-      .A_BIST_BM  (march_bitmask),
-      .A_BIST_MEN (march_memen),
-      .A_BIST_WEN (march_memwen),
-      .A_BIST_REN (march_memren),
+      .A_BIST_ADDR(bist_mux_addr),
+      .A_BIST_DIN (bist_mux_wdata),
+      .A_BIST_BM  (bist_mux_bitmask),
+      .A_BIST_MEN (bist_mux_memen),
+      .A_BIST_WEN (bist_mux_memwen),
+      .A_BIST_REN (bist_mux_memren),
       .A_BIST_CLK (TEST_TCLK)
   );
 

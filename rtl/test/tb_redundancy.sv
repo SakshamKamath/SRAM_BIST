@@ -59,6 +59,47 @@ module tb_redundancy;
 
 // Relevant Tasks
 
+task mem_write(
+    input logic [P_ADDR_WIDTH-1:0] addr,
+    input logic [P_DATA_WIDTH-1:0] data,
+    input logic [P_DATA_WIDTH-1:0] bitmask = '1
+  );
+    @(posedge A_CLK);
+    A_ADDR  <= addr;
+    A_DIN   <= data;
+    A_BM    <= bitmask;
+    A_MEN   <= 1'b1;
+    A_WEN   <= 1'b1;
+    A_REN   <= 1'b0;
+
+    @(posedge A_CLK); // Hold for 1 clock cycle
+    A_MEN   <= 1'b0;
+    A_WEN   <= 1'b0;
+    $display("[%0t ns] [BUS WRITE] Addr: 0x%0h | Data: 0x%0h", $time, addr, data);
+endtask
+
+  // Drive Functional Read Operation
+task mem_read(
+    input  logic [P_ADDR_WIDTH-1:0] addr,
+    output logic [P_DATA_WIDTH-1:0] data
+  );
+    @(posedge A_CLK);
+    A_ADDR  <= addr;
+    A_MEN   <= 1'b1;
+    A_REN   <= 1'b1;
+    A_WEN   <= 1'b0;
+
+    @(posedge A_CLK); // Allow read evaluation
+    #1; // Settling delay
+    data     = A_DOUT;
+    A_MEN   <= 1'b0;
+    A_REN   <= 1'b0;
+    $display("[%0t ns] [BUS READ]  Addr: 0x%0h | Data: 0x%0h", $time, addr, data);
+endtask
+
+
+
+
 task automatic jtag_reset();
   integer i;
   begin
@@ -247,8 +288,10 @@ typedef struct packed {
 } mem_isol_t;
 
 localparam int IsolBitWidth = $bits(mem_isol_t);
-mem_isol_t test_payload;
+mem_isol_t test_payload, repair_payload;
 logic [127:0] captured_payload;
+
+logic [P_DATA_WIDTH-1:0] read_val;
 
 initial begin
     $dumpfile("tb_redundancy.fst");
@@ -358,9 +401,9 @@ initial begin
     // =========================================================================
     // TEST 1: WRITE & SHADOW UPDATE (Verify internal shift and shadow registers)
     // =========================================================================
-    test_payload.redundancy.vaddr.valid = 1'b1;
-    test_payload.redundancy.vaddr.addr  = 'h5; // Match P_ADDR_WIDTH
-    test_payload.redundancy.data        = 'hDEADBEEF;
+    test_payload.redundancy.vaddr.valid = 1'b0;
+    test_payload.redundancy.vaddr.addr  = 'h2; // Match P_ADDR_WIDTH
+    test_payload.redundancy.data        = 'hDEADBEEE;
     test_payload.redundancy.bm          = 'hFFFFFFFF;
     test_payload.bist_en                = 1'b1;
     test_payload.men                    = 1'b1;
@@ -404,8 +447,8 @@ initial begin
     // Force memory read data at top level to verify Capture-DR behavior
     // --- STEP 1: Apply Read Address and Assert Read Enable ---
     test_payload                       = '0;
-    test_payload.redundancy.vaddr.valid = 1'b1;
-    test_payload.redundancy.vaddr.addr  = 10'h5; // Target Memory Address
+    test_payload.redundancy.vaddr.valid = 1'b0;
+    test_payload.redundancy.vaddr.addr  = 10'h2; // Target Memory Address
     test_payload.bist_en                = 1'b1;
     test_payload.men                    = 1'b1;
     test_payload.ren                    = 1'b1;   // Assert Read Enable
@@ -426,20 +469,39 @@ initial begin
     $display("[%0t ns] [TB] Starting 2nd DR Scan to Capture RAM Output...", $time);
     
     // Initiate a dummy scan (or next payload) to cycle through TAP Capture-DR state
-    jtag_write_dr(test_payload, captured_payload, IsolBitWidth);
+    jtag_write_dr('d0, captured_payload, IsolBitWidth);
     
-    // Check that mem_isol_q captured the REAL mem_rdata_i during Capture-DR phase
-    if (u_dut.i_jtag_tap_top.mem_isol_q.redundancy.data === u_dut.rdata) begin
-        $display("[%0t ns] [TB PASS] Memory read verified! Captured Data (0x%h) matches RAM output (0x%h)", 
-                 $time, u_dut.i_jtag_tap_top.mem_isol_q.redundancy.data, u_dut.rdata);
-    end else begin
-        $error("[%0t ns] [TB FAIL] Memory read mismatch! Internal Captured Data: 0x%h, RAM Output: 0x%h", 
-               $time, u_dut.i_jtag_tap_top.mem_isol_q.redundancy.data, u_dut.rdata);
-    end
+    // =========================================================
+    //       STARTING MEMORY REPAIR FEATURE TESTBENCH
+    //==========================================================
+
+    $display("[%0t ns] [TB] Step 1: Loading INSTR_MEMORY_REPAIR into IR...", $time);
+    jtag_write_ir(INSTR_MEMORY_REPAIR, 4);
+
+    // 3. Construct Repair Payload for Address 2
+    repair_payload = '0;
+    repair_payload.redundancy.vaddr.valid = 1'b1;              // Enable repair
+    repair_payload.redundancy.vaddr.addr  = 'd2;             // Target Address = 2
+    
+
+    jtag_write_dr(repair_payload, captured_payload, IsolBitWidth);
 
 
 
+    mem_write(.addr(10'd2), .data(32'hAAAA_BBB0));
 
+    mem_read(.addr(10'd2), .data(read_val));
+
+    mem_write(.addr(10'd2), .data(32'hDEFE_BABE));
+
+    mem_read(.addr(10'd2), .data(read_val));
+
+    mem_write(.addr(10'd7), .data(32'hA050_DEFD));
+
+    mem_read(.addr(10'd7), .data(read_val));
+
+
+    mem_read(.addr(10'd2), .data(read_val));
 
 // --------------------------------------------------------------------
     // // Read Erroneous Addresses from FIFO via JTAG

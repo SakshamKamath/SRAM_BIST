@@ -21,7 +21,7 @@ module jtag_tap_top #(
     input                     repair_men_i,
     input                     repair_wen_i,
     input                     repair_ren_i,
-    input                     repair_bm_i,
+    input [P_DATA_WIDTH-1:0]  repair_bm_i,
     input [P_DATA_WIDTH-1:0]  repair_wdata_i,
 
     output                    tdo_o,
@@ -359,8 +359,9 @@ always_comb begin
 
 
     //Remap based on valid addr in repair element 1
-    if (rep_hit && repair_wen_i) begin
-        mem_isol_d.redundancy.data = repair_wdata_i;
+    if (rep_hit && repair_wen_i & repair_men_i) begin
+        mem_isol_d.redundancy.data = (repair_wdata_i & repair_bm_i) | 
+                                     (mem_isol_q.redundancy.data & ~repair_bm_i);;
     end
 end
 
@@ -463,10 +464,12 @@ always_comb begin
     bypass_ren   = repair_ren_i;
     repair_rdata = mem_rdata_i;
 
+    
+
     // Remap whenever address hits and repair entry is valid (Irrespective of ir_latched_q)
     if (rep_hit) begin
+        repair_rdata = mem_isol_q.redundancy.data;
         if (repair_ren_i) begin
-            repair_rdata = mem_isol_q.redundancy.data;   // Serve from existing register
             bypass_ren   = 1'b0;                         // Inhibit main memory read
             bypass_men   = 1'b0;
         end
@@ -474,6 +477,9 @@ always_comb begin
             bypass_wen   = 1'b0;                         // Inhibit main memory write
             bypass_men   = 1'b0;
         end
+    end
+    else begin
+        repair_rdata = mem_rdata_i;
     end
 end
 
