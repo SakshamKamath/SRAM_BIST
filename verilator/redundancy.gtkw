@@ -1,15 +1,15 @@
 [*]
-[*] GTKWave Analyzer v4.0.0-prealpha (8ba24ab) (w)1999-2022 BSI
-[*] Thu Sep  3 09:19:49 2026
+[*] GTKWave Analyzer v4.0.0-prealpha (132a086) (w)1999-2022 BSI
+[*] Sat Sep  5 09:47:08 2026
 [*]
-[dumpfile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/obj_dir/tb_redundancy.fst"
-[dumpfile_mtime] "Thu Sep  3 09:13:57 2026"
-[dumpfile_size] 17613
+[dumpfile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/obj_dir/tb_redundancy.vcd"
+[dumpfile_mtime] "Sat Sep  5 09:36:22 2026"
+[dumpfile_size] 129031
 [savefile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/redundancy.gtkw"
-[timestart] 8740
+[timestart] 8477
 [size] 1427 600
-[pos] 106 51
-*-6.000000 8946 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[pos] 114 26
+*-6.000000 8636 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 [markername] AA
 [markername] BB
 [markername] CC
@@ -109,6 +109,9 @@ tb_redundancy.u_dut.u_sram_mem.A_BIST_REN
 -Memory Signals
 @22
 tb_redundancy.u_dut.u_sram_mem.A_ADDR[3:0]
+@29
+tb_redundancy.u_dut.i_jtag_tap_top.rephit_rd_latency_q
+@22
 tb_redundancy.u_dut.u_sram_mem.A_DIN[23:0]
 @28
 tb_redundancy.u_dut.u_sram_mem.A_MEN
@@ -124,9 +127,7 @@ tb_redundancy.u_dut.i_jtag_tap_top.repair_ren_i
 @22
 tb_redundancy.u_dut.i_jtag_tap_top.repair_wdata_i[23:0]
 tb_redundancy.u_dut.i_jtag_tap_top.repair_rdata[23:0]
-@23
 tb_redundancy.u_dut.i_jtag_tap_top.mem_rdata_i[23:0]
-@22
 tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.data[23:0]
 tb_redundancy.u_dut.i_jtag_tap_top.mem_isol_q.redundancy.bm[23:0]
 [pattern_trace] 1

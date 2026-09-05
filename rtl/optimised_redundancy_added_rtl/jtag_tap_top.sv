@@ -381,6 +381,15 @@ always_comb begin
         end
     end
 
+    if (repair_men_i && repair_ren_i) begin
+        if (repair_hit) begin
+            // Latched repair data stored into bm
+            mem_isol_d.redundancy.bm = mem_isol_q.redundancy.data; 
+        end else begin
+            // Normal memory read data stored into bm
+            mem_isol_d.redundancy.bm = mem_rdata_i; 
+        end
+    end
 
     //Remap based on valid addr in repair element 1  -- DOUBT: Assuming memory functional interface wouldn't be used during shifting
     if (repair_hit && repair_wen_i & repair_men_i) begin
@@ -474,12 +483,12 @@ end
 logic [AddrWidth-1:0] bypass_addr;  
 logic [DataWidth-1:0] bypass_data;  
 logic [DataWidth-1:0] bypass_bm; 
-logic                    bypass_men;
-logic                    bypass_wen;
-logic                    bypass_ren;
+logic                 bypass_men;
+logic                 bypass_wen;
+logic                 bypass_ren;
 
 logic [DataWidth-1:0] repair_rdata; 
-logic                    rephit_rd_latency_d, rephit_rd_latency_q; // for sram rd latency
+logic                 rephit_rd_latency_d, rephit_rd_latency_q; // for sram rd latency
 
 
 
@@ -510,13 +519,15 @@ always_comb begin
     bypass_men   = repair_men_i;
     bypass_wen   = repair_wen_i;
     bypass_ren   = repair_ren_i;
-    repair_rdata = mem_rdata_i;
 
     
 
     // Remap whenever address hits and repair entry is valid (Irrespective of ir_latched_q)
     if(rephit_rd_latency_q) begin
-        repair_rdata = mem_isol_q.redundancy.data;
+        repair_rdata = mem_isol_q.redundancy.bm;
+    end
+    else begin
+        repair_rdata = mem_rdata_i;
     end
 
     if (repair_hit) begin
@@ -526,9 +537,7 @@ always_comb begin
             bypass_wen   = 1'b0;                         // Inhibit main memory write
         end
     end
-    else begin
-        repair_rdata = mem_rdata_i;
-    end
+
 end
 
 
