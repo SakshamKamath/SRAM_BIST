@@ -423,10 +423,28 @@ end
 
 //----------------------- MUXing for TDO -------------------------
 
+
+// ----------------
+// DFT
+// ----------------
+logic tck_n, tck_ni;
+
+tc_clk_inverter i_tck_inv (
+  .clk_i ( tck_i  ),
+  .clk_o ( tck_ni )
+);
+
+tc_clk_mux2 i_dft_tck_mux (
+  .clk0_i    ( tck_ni     ),
+  .clk1_i    ( tck_i      ), // bypass the inverted clock for testing
+  .clk_sel_i ( testmode_i ),
+  .clk_o     ( tck_n      )
+);
+
 logic tdo_en_q, tdo_en_d;
 logic tdo_q, tdo_d;
 
-always_ff @(posedge tclk_i) begin
+always_ff @(posedge tck_n) begin
     if(!trst_ni) begin
         tdo_q    <= 1'b0;
         tdo_en_q <= 1'b0;
