@@ -11,9 +11,3 @@ package march_pkg;
     St_RepairWait
   } seq_e;
 endpackage
-
-package jtag_pkg;
-
-
-
-endpackage

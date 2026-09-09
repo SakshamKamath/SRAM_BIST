@@ -116,10 +116,7 @@ module spill_register_flushable #(
     always_comb begin
       b_data_d = b_data_q;
 
-      if (isol_en_i && shift_dr_i) begin // JTAG Shift
-        b_data_d = T'({tdi_i, b_data_q[TDataBits-1:1]});
-      end
-      else if (isol_en_i && update_dr_i) begin // JTAG Shadow Reg Update to transmit signals 
+      if (isol_en_i && update_dr_i) begin // JTAG Shadow Reg Update to transmit signals 
         b_data_d = a_data_q;
       end
       else if (b_fill) begin // Functional Mode

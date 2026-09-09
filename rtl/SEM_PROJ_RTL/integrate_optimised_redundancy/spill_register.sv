@@ -32,11 +32,8 @@ module spill_register #(
   input  logic isol_en_i,
   input  logic capture_dr_i,
   input  logic shift_dr_i,
-  input  logic update_dr_i,
+  input  logic update_dr_i
 
-  // -- JTAG Signals --
-  input  logic tdi_i,
-  output logic tdo_o
 );
 
   spill_register_flushable #(
@@ -55,9 +52,7 @@ module spill_register #(
     .isol_en_i,
     .capture_dr_i,
     .shift_dr_i,
-    .update_dr_i,
-    .tdi_i,
-    .tdo_o
+    .update_dr_i
   );
 
 endmodule

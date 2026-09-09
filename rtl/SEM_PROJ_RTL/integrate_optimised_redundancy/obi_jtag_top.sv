@@ -71,25 +71,135 @@ module obi_jtag_top #(
           update_dr, shift_ir, capture_ir, pause_ir, exit1_ir, update_ir, exit2_ir;
 
     jtag_tap_controller i_tap_fsm (
-                                    .tclk_i,
-                                    .tms_i,
-                                    .trst_ni,
-                                    .run_test_idle_o(run_test_idle),   
-                                    .test_logic_reset_o(test_logic_reset),
-                                    .capture_dr_o(capture_dr),      
-                                    .select_dr_scan_o(select_dr_scan),  
-                                    .exit1_dr_o(exit1_dr),        
-                                    .shift_dr_o(shift_dr),        
-                                    .exit2_dr_o(exit2_dr),        
-                                    .pause_dr_o(pause_dr),        
-                                    .select_ir_scan_o(select_ir_scan),  
-                                    .update_dr_o(update_dr),       
-                                    .shift_ir_o(shift_ir),        
-                                    .capture_ir_o(capture_ir),      
-                                    .pause_ir_o(pause_ir),        
-                                    .exit1_ir_o(exit1_ir),        
-                                    .update_ir_o(update_ir),       
-                                    .exit2_ir_o(exit2_ir)        
-                                  );
-                                  
+        .tclk_i,
+        .tms_i,
+        .trst_ni,
+        .run_test_idle_o   (run_test_idle   ),   
+        .test_logic_reset_o(test_logic_reset),
+        .capture_dr_o      (capture_dr      ),      
+        .select_dr_scan_o  (select_dr_scan  ),  
+        .exit1_dr_o        (exit1_dr        ),        
+        .shift_dr_o        (shift_dr        ),        
+        .exit2_dr_o        (exit2_dr        ),        
+        .pause_dr_o        (pause_dr        ),        
+        .select_ir_scan_o  (select_ir_scan  ),  
+        .update_dr_o       (update_dr       ),       
+        .shift_ir_o        (shift_ir        ),        
+        .capture_ir_o      (capture_ir      ),      
+        .pause_ir_o        (pause_ir        ),        
+        .exit1_ir_o        (exit1_ir        ),        
+        .update_ir_o       (update_ir       ),       
+        .exit2_ir_o        (exit2_ir        )        
+    );
+
+    // Definition for Isolation Bus Signals
+
+    typedef struct packed {
+        // sbr_port_a_chan_t [NumSbrPorts-1:0 ]                                          sbr_a_chan;
+        // sbr_port_r_chan_t [NumSbrPorts-1:0 ]                                          sbr_r_chan;
+        // mgr_port_a_chan_t [NumMgrPorts-1:0 ]                                          mgr_a_chan;
+        // mgr_port_r_chan_t [NumMgrPorts-1:0 ]                                          mgr_r_chan;
+        addr_map_rule_t   [NumAddrRules-1:0]                                          addrmap;
+        logic             [NumSbrPorts-1:0 ]                                          en_default_idx;
+        logic             [NumSbrPorts-1:0 ][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx
+    } xcnct_isol_misc_t;
+
+
+
+    // wrapper and multicut modules
+    logic xcnct_isol_en, tdo_chained;
+    xcnct_isol_misc_t xcnct_isol_miscbus;
+
+    tc_clk_mux2 i_dft_tck_mux (
+      .clk0_i    ( clk_i         ),
+      .clk1_i    ( tck_i         ), 
+      .clk_sel_i ( xcnct_isol_en ),
+      .clk_o     ( tck           )
+    );
+
+    obi_multicut #(
+        .ObiCfg             (ObiCfg             ),
+        .sbr_port_obi_req_t (sbr_port_obi_req_t ),
+        .sbr_port_a_chan_t  (sbr_port_a_chan_t  ),
+        .sbr_port_obi_rsp_t (sbr_port_obi_rsp_t ),
+        .sbr_port_r_chan_t  (sbr_port_r_chan_t  ),
+        .mgr_port_obi_req_t (mgr_port_obi_req_t ),
+        .mgr_port_obi_rsp_t (mgr_port_obi_rsp_t ),
+        .xcnct_isol_misc_t  (xcnct_isol_misc_t  ),
+        .NumSbrPorts        (NumSbrPorts        ),
+        .NumMgrPorts        (NumMgrPorts        ),
+        .NumMaxTrans        (NumMaxTrans        ),
+        .NumAddrRules       (NumAddrRules       ),
+        .addr_map_rule_t    (addr_map_rule_t    ),
+        .BypassReqSbr       (BypassReqSbr       ),
+        .BypassRspSbr       (BypassRspSbr       ),
+        .BypassReqMgr       (BypassReqMgr       ),
+        .BypassRspMgr       (BypassRspMgr       )
+    ) (
+        .clk_i(tck),
+        .rst_ni,
+        .tdi_i(tdo_chained),
+        .isol_en_i(xcnct_isol_en),
+        .capture_dr_i(capture_dr),
+        .shift_dr_i(shift_dr),
+        .update_dr_i(update_dr),
+        .tdo_o,
+        .mst_cut_sbr_ports_req_i, 
+        .xbar_cut_sbr_ports_rsp_i,
+        .cut_xbar_sbr_ports_req_o,
+        .cut_mst_sbr_ports_rsp_o,
+        .xbar_cut_mgr_ports_req_i, 
+        .slv_cut_mgr_ports_rsp_i, 
+        .cut_slv_mgr_ports_req_o,
+        .cut_xbar_mgr_ports_rsp_o,
+        .addr_map_i,
+        .en_default_idx_i,
+        .default_idx_i,
+        .xcnct_isol_miscbus_i(xcnct_isol_miscbus)
+    );
+
+
+    obi_jtag_wrapper #(
+        .ObiCfg             (ObiCfg             ),
+        .sbr_port_obi_req_t (sbr_port_obi_req_t ),
+        .sbr_port_a_chan_t  (sbr_port_a_chan_t  ),
+        .sbr_port_obi_rsp_t (sbr_port_obi_rsp_t ),
+        .sbr_port_r_chan_t  (sbr_port_r_chan_t  ),
+        .mgr_port_obi_req_t (mgr_port_obi_req_t ),
+        .mgr_port_obi_rsp_t (mgr_port_obi_rsp_t ),
+        .xcnct_isol_misc_t  (xcnct_isol_misc_t  ),
+        .NumSbrPorts        (NumSbrPorts        ),
+        .NumMgrPorts        (NumMgrPorts        ),
+        .NumMaxTrans        (NumMaxTrans        ),
+        .NumAddrRules       (NumAddrRules       ),
+        .addr_map_rule_t    (addr_map_rule_t    ),
+        .BypassReqSbr       (BypassReqSbr       ),
+        .BypassRspSbr       (BypassRspSbr       ),
+        .BypassReqMgr       (BypassReqMgr       ),
+        .BypassRspMgr       (BypassRspMgr       )
+    ) (
+        .tclk_i,
+        .tms_i,
+        .trst_ni,
+        .tdi_i,
+
+        //TAP Controller Signals
+        .test_logic_reset_i(test_logic_reset),
+        .capture_dr_i(capture_dr),
+        .shift_dr_i(shift_dr),
+        .update_dr_i(update_dr),    
+        .shift_ir_i(shift_ir),        
+        .capture_ir_i(capture_ir),      
+        .update_ir_i(update_ir),   
+
+        .tdo_o(tdo_chained),
+        .tdo_en_o,
+
+        .xcnct_isol_en_o(xcnct_isol_en),
+        .xcnct_isol_o(xcnct_isol_miscbus)
+    );
+
+
+
+
 endmodule

@@ -15,6 +15,8 @@ module obi_cut #(
   parameter type               obi_req_t    = logic,
   /// The response struct.
   parameter type               obi_rsp_t    = logic,
+  /// Isolation Bus type struct
+  parameter type               xcnct_isol_t = logic,
   /// Bypass enable, can be individually overridden!
   parameter bit                Bypass       = 1'b0,
   /// Bypass enable for Request side.
@@ -31,16 +33,16 @@ module obi_cut #(
   output obi_req_t mgr_port_req_o,
   input  obi_rsp_t mgr_port_rsp_i,
 
-    //JTAG Interface
+  //JTAG Interface
+  input  logic tdi_i,
+  output logic tdo_o,
+
   // -- Tap Signals --
   input  logic isol_en_i,
   input  logic capture_dr_i,
   input  logic shift_dr_i,
-  input  logic update_dr_i,
+  input  logic update_dr_i
 
-  // -- JTAG Signals --
-  input  logic tdi_i,
-  output logic tdo_o
 );
 
   spill_register #(
@@ -49,18 +51,16 @@ module obi_cut #(
   ) i_reg_a (
     .clk_i,
     .rst_ni,
-    .valid_i ( sbr_port_req_i.req ),
-    .ready_o ( sbr_port_rsp_o.gnt ),
-    .data_i  ( sbr_port_req_i.a   ),
-    .valid_o ( mgr_port_req_o.req ),
-    .ready_i ( mgr_port_rsp_i.gnt ),
-    .data_o  ( mgr_port_req_o.a   )
+    .valid_i    ( sbr_port_req_i.req          ),
+    .ready_o    ( sbr_port_rsp_o.gnt          ),
+    .data_i     ( sbr_port_req_i.a            ),
+    .valid_o    ( mgr_port_req_o.req          ),
+    .ready_i    ( mgr_port_rsp_i.gnt          ),
+    .data_o     ( mgr_port_req_o.a            )
     .isol_en_i,
     .capture_dr_i,
     .shift_dr_i,
-    .update_dr_i,
-    .tdi_i,
-    .tdo_o
+    .update_dr_i
   );
 
   logic ready_o;
@@ -79,18 +79,16 @@ module obi_cut #(
   ) i_req_r (
     .clk_i,
     .rst_ni,
-    .valid_i ( mgr_port_rsp_i.rvalid ),
-    .ready_o ( ready_o               ),
-    .data_i  ( mgr_port_rsp_i.r      ),
-    .valid_o ( sbr_port_rsp_o.rvalid ),
-    .ready_i ( ready_i               ),
-    .data_o  ( sbr_port_rsp_o.r      ),
+    .valid_i    ( mgr_port_rsp_i.rvalid       ),
+    .ready_o    ( ready_o                     ),
+    .data_i     ( mgr_port_rsp_i.r            ),
+    .valid_o    ( sbr_port_rsp_o.rvalid       ),
+    .ready_i    ( ready_i                     ),
+    .data_o     ( sbr_port_rsp_o.r            ),
     .isol_en_i,
     .capture_dr_i,
     .shift_dr_i,
-    .update_dr_i,
-    .tdi_i,
-    .tdo_o
+    .update_dr_i
   );
 
 endmodule

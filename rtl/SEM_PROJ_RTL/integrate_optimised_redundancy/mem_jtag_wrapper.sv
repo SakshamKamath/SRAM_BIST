@@ -11,6 +11,7 @@ module mem_jtag_wrapper #(
     input  logic                 tms_i,
     input  logic                 trst_ni,
     input  logic                 tdi_i,
+    input  logic                 testmode_i,
 
     input  logic [AddrWidth-1:0] mbist_erraddr_i,
     input  logic                 mbist_status_i,
@@ -78,7 +79,6 @@ module mem_jtag_wrapper #(
 
 //All Possible Instructions with their opcodes
 
-import jtag_pkg::*;
 typedef enum logic [IrWidth-1:0] {
     Instr_MemID,
     Instr_Bypass,
@@ -424,27 +424,27 @@ end
 //----------------------- MUXing for TDO -------------------------
 
 
-// ----------------
-// DFT
-// ----------------
-logic tck_n, tck_ni;
+// // ----------------
+// // DFT
+// // ----------------
+// logic tck_n, tck_ni;
 
-tc_clk_inverter i_tck_inv (
-  .clk_i ( tck_i  ),
-  .clk_o ( tck_ni )
-);
+// tc_clk_inverter i_tck_inv (
+//   .clk_i ( tck_i  ),
+//   .clk_o ( tck_ni )
+// );
 
-tc_clk_mux2 i_dft_tck_mux (
-  .clk0_i    ( tck_ni     ),
-  .clk1_i    ( tck_i      ), // bypass the inverted clock for testing
-  .clk_sel_i ( testmode_i ),
-  .clk_o     ( tck_n      )
-);
+// tc_clk_mux2 i_dft_tck_mux (
+//   .clk0_i    ( tck_ni     ),
+//   .clk1_i    ( tck_i      ), // bypass the inverted clock for testing
+//   .clk_sel_i ( testmode_i ),
+//   .clk_o     ( tck_n      )
+// );
 
 logic tdo_en_q, tdo_en_d;
 logic tdo_q, tdo_d;
 
-always_ff @(posedge tck_n) begin
+always_ff @(posedge tck_i) begin
     if(!trst_ni) begin
         tdo_q    <= 1'b0;
         tdo_en_q <= 1'b0;

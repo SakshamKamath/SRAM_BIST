@@ -9,6 +9,7 @@ module mem_jtag_top (
     input  logic                 tms_i,
     input  logic                 trst_ni,
     input  logic                 tdi_i,
+    // input  logic                 testmode_i,
 
     input  logic [AddrWidth-1:0] mbist_erraddr_i,
     input  logic                 mbist_status_i,
@@ -95,6 +96,7 @@ module mem_jtag_top (
                      .tms_i,
                      .trst_ni,
                      .tdi_i,
+                    //  .testmode_i,
                      .mbist_erraddr_i,
                      .mbist_status_i,
                      .mbist_fifo_notempty_i,
