@@ -10,11 +10,8 @@ module march_bist_controller #(
 )   
     (
         //JTAG Related Signals
-        input  logic tdi_i,
-        input  logic tms_i,
         input  logic tclk_i, 
         input  logic trst_ni,           
-        output logic tdo_o,
 
         //Control Signals
         input  logic start_i,
@@ -409,7 +406,6 @@ end
 
 
 // Output Assignments
-assign tdo_o     = tdi_i;
 assign done_o = (seq_q == St_Done);
 assign memaddr_o = addr_q;
 assign busy_o    = (seq_q != St_Idle) && (seq_q != St_Done);

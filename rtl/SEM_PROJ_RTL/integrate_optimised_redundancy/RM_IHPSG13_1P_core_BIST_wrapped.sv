@@ -198,12 +198,12 @@ assign bist_mux_memren  = (isol_bist_en) ? isol_memren  : march_memren;
       .A_DOUT    (rdata),
 
       .A_BIST_EN  (march_busy | isol_bist_en),
-      .A_BIST_ADDR(bist_mux_addr),
-      .A_BIST_DIN (bist_mux_wdata),
+      .A_BIST_ADDR(bist_mux_addr   ),
+      .A_BIST_DIN (bist_mux_wdata  ),
       .A_BIST_BM  (bist_mux_bitmask),
-      .A_BIST_MEN (bist_mux_memen),
-      .A_BIST_WEN (bist_mux_memwen),
-      .A_BIST_REN (bist_mux_memren),
+      .A_BIST_MEN (bist_mux_memwen  ),
+      .A_BIST_WEN (bist_mux_memwen ),
+      .A_BIST_REN (bist_mux_memren ),
       .A_BIST_CLK (TEST_TCLK)
   );
 
