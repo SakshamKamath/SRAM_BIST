@@ -74,22 +74,22 @@ module obi_jtag_top #(
         .tclk_i,
         .tms_i,
         .trst_ni,
-        .run_test_idle_o   (run_test_idle   ),   
+        .run_test_idle_o(run_test_idle),   
         .test_logic_reset_o(test_logic_reset),
-        .capture_dr_o      (capture_dr      ),      
-        .select_dr_scan_o  (select_dr_scan  ),  
-        .exit1_dr_o        (exit1_dr        ),        
-        .shift_dr_o        (shift_dr        ),        
-        .exit2_dr_o        (exit2_dr        ),        
-        .pause_dr_o        (pause_dr        ),        
-        .select_ir_scan_o  (select_ir_scan  ),  
-        .update_dr_o       (update_dr       ),       
-        .shift_ir_o        (shift_ir        ),        
-        .capture_ir_o      (capture_ir      ),      
-        .pause_ir_o        (pause_ir        ),        
-        .exit1_ir_o        (exit1_ir        ),        
-        .update_ir_o       (update_ir       ),       
-        .exit2_ir_o        (exit2_ir        )        
+        .capture_dr_o(capture_dr),      
+        .shift_dr_o(shift_dr),        
+        .update_dr_o(update_dr),       
+        .shift_ir_o(shift_ir),        
+        .capture_ir_o(capture_ir),      
+        .update_ir_o(update_ir)       
+        // .select_dr_scan_o(select_dr_scan),  
+        // .exit1_dr_o(exit1_dr),        
+        // .exit2_dr_o(exit2_dr),        
+        // .pause_dr_o(pause_dr),        
+        // .select_ir_scan_o(select_ir_scan),  
+        // .pause_ir_o(pause_ir),        
+        // .exit1_ir_o(exit1_ir),        
+        // .exit2_ir_o(exit2_ir)        
     );
 
     // Definition for Isolation Bus Signals

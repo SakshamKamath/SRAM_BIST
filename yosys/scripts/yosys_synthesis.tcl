@@ -24,7 +24,8 @@ yosys plugin -i slang.so
 # default from yosys_common.tcl: top_design=croc_chip; sv_flist=./croc.flist
 yosys read_slang --top $top_design -f $sv_flist \
         --compat-mode --keep-hierarchy \
-        --allow-use-before-declare --ignore-unknown-modules
+        --allow-use-before-declare 
+#--ignore-unknown-modules
 
 # preserve hierarchy of selected modules/instances
 # 't' means type as in select all instances of this type/module
@@ -53,7 +54,8 @@ yosys setattr -set keep_hierarchy 1 "t:cdc*_src*$*"
 yosys setattr -set keep_hierarchy 1 "t:cdc*_dst*$*"
 yosys setattr -set keep_hierarchy 1 "t:sync$*"
 yosys setattr -set keep_hierarchy 1 "t:march_bist*$*"
-yosys setattr -set keep_hierarchy 1 "t:jtag_tap_top$*"
+yosys setattr -set keep_hierarchy 1 "t:mem_jtag_top$*"
+yosys setattr -set keep_hierarchy 1 "t:mem_jtag_wrapper$*"
 
 
 # blackbox modules (applies the *blackbox* attribute)

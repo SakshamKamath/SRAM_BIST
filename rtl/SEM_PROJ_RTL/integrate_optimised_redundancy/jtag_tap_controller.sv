@@ -4,13 +4,13 @@ module jtag_tap_controller (
     input  logic trst_ni,
 
     output logic run_test_idle_o,   
-    output logic TestLogicReset_o,
-    output logic CaptureDr_o,      
-    output logic ShiftDr_o,        
-    output logic UpdateDr_o,       
-    output logic ShiftIr_o,        
-    output logic CaptureIr_o,      
-    output logic UpdateIr_o       
+    output logic test_logic_reset_o,
+    output logic capture_dr_o,      
+    output logic shift_dr_o,        
+    output logic update_dr_o,       
+    output logic shift_ir_o,        
+    output logic capture_ir_o,      
+    output logic update_ir_o       
     // output logic SelectDrScan_o,  
     // output logic Exit1Dr_o,        
     // output logic Exit2Dr_o,        
@@ -200,13 +200,13 @@ end
 
 //Output Assignments
 
-assign TestLogicReset_o  = (state_q == TestLogicReset);
-assign CaptureDr_o       = (state_q == CaptureDr);
-assign ShiftDr_o         = (state_q == ShiftDr);
-assign UpdateDr_o        = (state_q == UpdateDr);
-assign ShiftIr_o         = (state_q == ShiftIr);
-assign CaptureIr_o       = (state_q == CaptureIr);
-assign UpdateIr_o        = (state_q == UpdateIr);
+assign test_logic_reset_o = (state_q == TestLogicReset);
+assign capture_dr_o       = (state_q == CaptureDr);
+assign shift_dr_o         = (state_q == ShiftDr);
+assign update_dr_o        = (state_q == UpdateDr);
+assign shift_ir_o         = (state_q == ShiftIr);
+assign capture_ir_o       = (state_q == CaptureIr);
+assign update_ir_o        = (state_q == UpdateIr);
 // assign run_test_idle_o    = (state_q == RunTestOrIdle);
 // assign SelectDrScan_o   = (state_q == SelectDrScan);
 // assign Exit1Dr_o         = (state_q == Exit1Dr);

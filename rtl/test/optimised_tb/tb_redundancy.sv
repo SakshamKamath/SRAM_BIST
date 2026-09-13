@@ -322,7 +322,7 @@ logic [127:0] captured_payload;
 logic [DataWidth-1:0] read_val;
 
 initial begin
-    $dumpfile("tb_redundancy.vcd");
+    $dumpfile("tb_redundancy.fst");
     $dumpvars(0, tb_redundancy);
     // Initialize signals
     TEST_TCLK   = 1'b0;

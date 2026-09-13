@@ -492,7 +492,7 @@ module croc_domain import croc_pkg::*; #(
       .be_i    ( bank_be    ),
       .rdata_o ( bank_rdata ),
 
-      .testmode_i,
+      // .testmode_i,
       .tck_i   (jtag_tck_i  ),       
       .tms_i   (jtag_tms_i  ),  
       .trst_ni (jtag_trst_ni),

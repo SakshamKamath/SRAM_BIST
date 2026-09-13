@@ -54,6 +54,23 @@ module obi_xbar #(
   input  logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_i
 );
 
+
+  // Multicut with JTAG capabilities 
+  obi_jtag_top #(
+    .ObiCfg(obi_pkg::ObiDefaultConfig)
+  )
+
+
+
+
+
+
+
+
+
+
+
+
   logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] sbr_port_select;
 
   // Signals from the demuxes

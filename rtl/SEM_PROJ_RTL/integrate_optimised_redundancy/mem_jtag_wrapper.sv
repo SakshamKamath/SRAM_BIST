@@ -11,7 +11,7 @@ module mem_jtag_wrapper #(
     input  logic                 tms_i,
     input  logic                 trst_ni,
     input  logic                 tdi_i,
-    input  logic                 testmode_i,
+    // input  logic                 testmode_i,
 
     input  logic [AddrWidth-1:0] mbist_erraddr_i,
     input  logic                 mbist_status_i,
@@ -444,7 +444,7 @@ end
 logic tdo_en_q, tdo_en_d;
 logic tdo_q, tdo_d;
 
-always_ff @(posedge tck_i) begin
+always_ff @(posedge tclk_i) begin
     if(!trst_ni) begin
         tdo_q    <= 1'b0;
         tdo_en_q <= 1'b0;

@@ -126,10 +126,10 @@ module tc_sram_impl #(
   assign bm = bypass_bm;
 
   mem_jtag_top #(
-    .IrWidth(IrWidth),
-    .MemIDValue(MemIDValue),
+    .IrWidth(4),
+    .MemIDValue(32'h1080_5768),
     .AddrWidth(AddrWidth),
-    .MemIDWidth(MemIDWidth),
+    .MemIDWidth(32),
     .DataWidth(DataWidth)
   ) i_mem_jtag_top (
     .tclk_i                (tck_i),
