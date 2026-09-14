@@ -1,6 +1,8 @@
 module obi_jtag_top #(
-        /// The OBI configuration.
-    parameter obi_pkg::obi_cfg_t ObiCfg             = obi_pkg::ObiDefaultConfig,
+    /// The OBI configuration for the subordinate ports (input ports).
+    parameter obi_pkg::obi_cfg_t SbrPortObiCfg      = obi_pkg::ObiDefaultConfig,
+    /// The OBI configuration for the manager ports (output ports).
+    parameter obi_pkg::obi_cfg_t MgrPortObiCfg      = SbrPortObiCfg,
     /// The request struct for the subordinate ports (input ports).
     parameter type               sbr_port_obi_req_t = logic,
     /// The A channel struct for the subordinate ports (input ports).
@@ -62,6 +64,10 @@ module obi_jtag_top #(
     input  logic [NumSbrPorts-1:0]              en_default_idx_i,
     input  logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_i
 
+    output addr_map_rule_t [NumAddrRules-1:0]   addr_map_o,
+    output logic [NumSbrPorts-1:0]              en_default_idx_o,
+    output logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_o
+
 );
 
 
@@ -82,23 +88,11 @@ module obi_jtag_top #(
         .shift_ir_o(shift_ir),        
         .capture_ir_o(capture_ir),      
         .update_ir_o(update_ir)       
-        // .select_dr_scan_o(select_dr_scan),  
-        // .exit1_dr_o(exit1_dr),        
-        // .exit2_dr_o(exit2_dr),        
-        // .pause_dr_o(pause_dr),        
-        // .select_ir_scan_o(select_ir_scan),  
-        // .pause_ir_o(pause_ir),        
-        // .exit1_ir_o(exit1_ir),        
-        // .exit2_ir_o(exit2_ir)        
     );
 
     // Definition for Isolation Bus Signals
 
     typedef struct packed {
-        // sbr_port_a_chan_t [NumSbrPorts-1:0 ]                                          sbr_a_chan;
-        // sbr_port_r_chan_t [NumSbrPorts-1:0 ]                                          sbr_r_chan;
-        // mgr_port_a_chan_t [NumMgrPorts-1:0 ]                                          mgr_a_chan;
-        // mgr_port_r_chan_t [NumMgrPorts-1:0 ]                                          mgr_r_chan;
         addr_map_rule_t   [NumAddrRules-1:0]                                          addrmap;
         logic             [NumSbrPorts-1:0 ]                                          en_default_idx;
         logic             [NumSbrPorts-1:0 ][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx
@@ -118,7 +112,8 @@ module obi_jtag_top #(
     );
 
     obi_multicut #(
-        .ObiCfg             (ObiCfg             ),
+        .SbrPortObiCfg      (SbrPortObiCfg      ),
+        .MgrPortObiCfg      (MgrPortObiCfg      ),
         .sbr_port_obi_req_t (sbr_port_obi_req_t ),
         .sbr_port_a_chan_t  (sbr_port_a_chan_t  ),
         .sbr_port_obi_rsp_t (sbr_port_obi_rsp_t ),
@@ -155,6 +150,9 @@ module obi_jtag_top #(
         .addr_map_i,
         .en_default_idx_i,
         .default_idx_i,
+        .addr_map_o,
+        .en_default_idx_o,
+        .default_idx_o,
         .xcnct_isol_miscbus_i(xcnct_isol_miscbus)
     );
 

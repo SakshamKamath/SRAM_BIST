@@ -1,6 +1,8 @@
 module obi_multicut #(
-    /// The OBI configuration.
-    parameter obi_pkg::obi_cfg_t ObiCfg             = obi_pkg::ObiDefaultConfig,
+    /// The OBI configuration for the subordinate ports (input ports).
+    parameter obi_pkg::obi_cfg_t SbrPortObiCfg      = obi_pkg::ObiDefaultConfig,
+    /// The OBI configuration for the manager ports (output ports).
+    parameter obi_pkg::obi_cfg_t MgrPortObiCfg      = SbrPortObiCfg,
     /// The request struct for the subordinate ports (input ports).
     parameter type               sbr_port_obi_req_t = logic,
     /// The A channel struct for the subordinate ports (input ports).
@@ -116,7 +118,7 @@ assign tdo_o         = scan_chain[TotalCuts];
 // Subordinate Side
 for (genvar i = 0; i < NumSbrPorts; i++) begin : gen_sbr_cuts
     obi_cut #(
-      .ObiCfg            ( ObiCfg             ),
+      .ObiCfg            ( SbrPortObiCfg      ),
       .obi_a_chan_t      ( sbr_port_a_chan_t  ),
       .obi_r_chan_t      ( sbr_port_r_chan_t  ),
       .obi_req_t         ( sbr_port_obi_req_t ),
@@ -151,7 +153,7 @@ for (genvar j = 0; j < NumMgrPorts; j++) begin : gen_mgr_cuts
     localparam int unsigned ChainIdx = NumSbrPorts + j;
 
     obi_cut #(
-      .ObiCfg            ( ObiCfg             ),
+      .ObiCfg            ( MgrPortObiCfg      ),
       .obi_a_chan_t      ( sbr_port_a_chan_t  ),
       .obi_r_chan_t      ( sbr_port_r_chan_t  ),
       .obi_req_t         ( mgr_port_obi_req_t ),
