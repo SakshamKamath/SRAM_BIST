@@ -1,4 +1,6 @@
 module obi_jtag_top #(
+    /// Width of the Instruction Register Used in JTAG Wrapper Module
+    parameter                    IrWidth            = 2,
     /// The OBI configuration for the subordinate ports (input ports).
     parameter obi_pkg::obi_cfg_t SbrPortObiCfg      = obi_pkg::ObiDefaultConfig,
     /// The OBI configuration for the manager ports (output ports).
@@ -158,6 +160,7 @@ module obi_jtag_top #(
 
 
     obi_jtag_wrapper #(
+        .IrWidth            (IrWidth            ).
         .ObiCfg             (ObiCfg             ),
         .sbr_port_obi_req_t (sbr_port_obi_req_t ),
         .sbr_port_a_chan_t  (sbr_port_a_chan_t  ),

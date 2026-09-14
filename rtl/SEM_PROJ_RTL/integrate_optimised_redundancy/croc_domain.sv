@@ -7,7 +7,9 @@
 
 module croc_domain import croc_pkg::*; #(
   parameter int unsigned GpioCount = 16,
-  parameter int unsigned NumExternalIrqs = 4
+  parameter int unsigned NumExternalIrqs = 4,
+  parameter MemIDBase  = 'h10,
+  parameter NumJTAGNodes = 3
 ) (
   input  logic      clk_i,
   input  logic      rst_ni,
@@ -42,6 +44,12 @@ module croc_domain import croc_pkg::*; #(
   input  logic [NumExternalIrqs-1:0] interrupts_i,
   output logic core_busy_o
 );
+
+  // -----------------
+  // JTAG Signals
+  // ----------------- 
+  logic [NumJTAGNodes-1:0] daisy_scan_chain;
+  assign jtag_tdo_o = daisy_scan_chain[NumJTAGNodes-1];
 
   // -----------------
   // Control Signals
@@ -347,8 +355,9 @@ module croc_domain import croc_pkg::*; #(
     .tck_i            ( jtag_tck_i     ),
     .tms_i            ( jtag_tms_i     ),
     .trst_ni          ( jtag_trst_ni   ),
-    .td_i             ( jtag_tdi_i     ),
-    .td_o             ( jtag_tdo_o     ),
+    .td_i             ( daisy_scan_chain[1]     ),
+    // .td_o             ( jtag_tdo_o     ),
+    .td_o             ( daisy_scan_chain[2]     ),
     .tdo_oe_o         ()
   );
 
@@ -425,6 +434,13 @@ module croc_domain import croc_pkg::*; #(
     .rst_ni,
     .testmode_i,
 
+    // JTAG Interface
+    .trst_ni (jtag_trst_ni),
+    .tclk_i  (jtag_tck_i  ),
+    .tdi_i   (jtag_tdi_i ), 
+    .tms_i   (jtag_tms_i  ),
+    .tdo_o   (daisy_scan_chain[0] ), 
+
     // connections between managers and crossbar
     .sbr_ports_req_i  ( xbar_mgr_obi_req ),
     .sbr_ports_rsp_o  ( xbar_mgr_obi_rsp ),
@@ -471,12 +487,17 @@ module croc_domain import croc_pkg::*; #(
     );
 
     assign bank_word_addr = bank_byte_addr[SbrObiCfg.AddrWidth-1:2];
+     
 
     tc_sram_impl #(
-      .NumWords  ( SramBankNumWords ),
-      .DataWidth ( 32 ),
-      .NumPorts  (  1 ),
-      .Latency   (  1 )
+      .NumWords    ( SramBankNumWords ),
+      .DataWidth   ( 32 ),
+      .NumPorts    (  1 ),
+      .Latency     (  1 ),
+      .IdCodeWidth (  8 ),
+      .IdCodeVal   (  MemIDBase + i*8'h10  ),
+      .FifoDepth   (  2 ), // Depth is 2**FifoDepth
+      .IrWidth     (  4 )
     ) i_sram (
       .clk_i,
       .rst_ni,
@@ -492,12 +513,11 @@ module croc_domain import croc_pkg::*; #(
       .be_i    ( bank_be    ),
       .rdata_o ( bank_rdata ),
 
-      .testmode_i,
       .tck_i   (jtag_tck_i  ),       
       .tms_i   (jtag_tms_i  ),  
       .trst_ni (jtag_trst_ni),
-      .td_i    (jtag_tdi_i  ),   
-      .td_o    (jtag_tdo_o  ),   
+      .td_i    (daisy_scan_chain[0]  ),   
+      .td_o    (daisy_scan_chain[1]  ),   
       .tdo_oe_o()
     );
 
