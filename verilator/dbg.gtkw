@@ -1,0 +1,77 @@
+[*]
+[*] GTKWave Analyzer v4.0.0-prealpha (a6aae77) (w)1999-2022 BSI
+[*] Wed Sep 16 19:57:03 2026
+[*]
+[dumpfile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/croc.fst"
+[dumpfile_mtime] "Wed Sep 16 18:14:52 2026"
+[dumpfile_size] 10397313
+[savefile] "/home/sem26h3/Documents/SEM_PROJ/SRAM_BIST/verilator/dbg.gtkw"
+[timestart] 3282000
+[size] 1427 600
+[pos] 22 26
+*-17.000000 3715800 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+[markername] AA
+[markername] BB
+[markername] CC
+[markername] DD
+[markername] EE
+[markername] FF
+[markername] GG
+[markername] HH
+[markername] II
+[markername] JJ
+[markername] KK
+[markername] LL
+[markername] MM
+[markername] NN
+[markername] OO
+[markername] PP
+[markername] QQ
+[markername] RR
+[markername] SS
+[markername] TT
+[markername] UU
+[markername] VV
+[markername] WW
+[markername] XX
+[markername] YY
+[markername] ZZ
+[treeopen] tb_croc_soc.
+[treeopen] tb_croc_soc.i_croc_soc.
+[treeopen] tb_croc_soc.i_croc_soc.i_croc.
+[treeopen] tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.
+[treeopen] tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.
+[treeopen] tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.
+[sst_width] 297
+[signals_width] 281
+[sst_expanded] 1
+[sst_vpaned_height] 149
+@28
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.tck_i
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.td_i
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.td_o
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.tms_i
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.trst_ni
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.testmode_i
+@100000028
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.tap_state_q[3:0]
+@22
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.idcode_q[31:0]
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.jtag_ir_shift_q[4:0]
+@100000028
+tb_croc_soc.i_croc_soc.i_croc.i_dmi_jtag.i_dmi_jtag_tap.jtag_ir_q[4:0]
+@200
+-OBI Jtag
+@28
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.tclk_i
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.tdi_i
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.testmode_i
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.tms_i
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.trst_ni
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.tdo_o
+@100000028
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.i_tap_fsm.state_q[3:0]
+@100000029
+tb_croc_soc.i_croc_soc.i_croc.i_main_xbar.i_obi_jtag_top.i_obi_jtag_wrap.ir_latched_q[1:0]
+[pattern_trace] 1
+[pattern_trace] 0

@@ -45,6 +45,8 @@ module obi_cut_mod #(
 
 );
 
+  logic spreg_daisy_chain;
+
   spill_register_mod #(
     .T      ( obi_a_chan_t ),
     .Bypass ( BypassReq    )
@@ -62,7 +64,7 @@ module obi_cut_mod #(
     .shift_dr_i,
     .update_dr_i,
     .tdi_i,
-    .tdo_o
+    .tdo_o(spreg_daisy_chain)
   );
 
   logic ready_o;
@@ -91,7 +93,7 @@ module obi_cut_mod #(
     .capture_dr_i,
     .shift_dr_i,
     .update_dr_i,
-    .tdi_i,
+    .tdi_i(spreg_daisy_chain),
     .tdo_o
   );
 
