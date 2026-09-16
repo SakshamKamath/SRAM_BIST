@@ -4,7 +4,7 @@
 
 // Michael Rogenmoser <michaero@iis.ee.ethz.ch>
 
-module obi_cut #(
+module obi_cut_mod #(
     /// The OBI configuration.
   parameter obi_pkg::obi_cfg_t ObiCfg       = obi_pkg::ObiDefaultConfig,
   /// The obi A channel struct.
@@ -45,7 +45,7 @@ module obi_cut #(
 
 );
 
-  spill_register #(
+  spill_register_mod #(
     .T      ( obi_a_chan_t ),
     .Bypass ( BypassReq    )
   ) i_reg_a (
@@ -56,11 +56,13 @@ module obi_cut #(
     .data_i     ( sbr_port_req_i.a            ),
     .valid_o    ( mgr_port_req_o.req          ),
     .ready_i    ( mgr_port_rsp_i.gnt          ),
-    .data_o     ( mgr_port_req_o.a            )
+    .data_o     ( mgr_port_req_o.a            ),
     .isol_en_i,
     .capture_dr_i,
     .shift_dr_i,
-    .update_dr_i
+    .update_dr_i,
+    .tdi_i,
+    .tdo_o
   );
 
   logic ready_o;
@@ -73,7 +75,7 @@ module obi_cut #(
     assign ready_i = 1'b1;
   end
 
-  spill_register #(
+  spill_register_mod #(
     .T      ( obi_r_chan_t ),
     .Bypass ( BypassRsp    )
   ) i_req_r (
@@ -88,7 +90,9 @@ module obi_cut #(
     .isol_en_i,
     .capture_dr_i,
     .shift_dr_i,
-    .update_dr_i
+    .update_dr_i,
+    .tdi_i,
+    .tdo_o
   );
 
 endmodule

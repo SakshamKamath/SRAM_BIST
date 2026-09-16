@@ -1,7 +1,5 @@
 module obi_jtag_wrapper #(
     parameter IrWidth    = 2,
-    /// The OBI configuration.
-    parameter obi_pkg::obi_cfg_t ObiCfg             = obi_pkg::ObiDefaultConfig,
     /// The request struct for the subordinate ports (input ports).
     parameter type               sbr_port_obi_req_t = logic,
     /// The A channel struct for the subordinate ports (input ports).
@@ -188,7 +186,7 @@ end
 logic tdo_en_q, tdo_en_d;
 logic tdo_q, tdo_d;
 
-always_ff @(posedge tck_i) begin
+always_ff @(posedge tclk_i) begin
     if(!trst_ni) begin
         tdo_q    <= 1'b0;
         tdo_en_q <= 1'b0;

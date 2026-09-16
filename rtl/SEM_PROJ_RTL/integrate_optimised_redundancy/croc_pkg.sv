@@ -75,16 +75,14 @@ package croc_pkg;
 
 
   // Container struct for a single pad interfacing boundary scan
-  typedef struct packed {
+  typedef union packed {
     logic p2c;        // Pad to Core (Input Data)
     logic c2p;        // Core to Pad (Output Data)
-    logic c2p_en;     // Core to Pad Output Enable (1 = Output Drive Enable, 0 = Hi-Z)
   } pad_signal_t;
 
-  typedef enum logic [1:0] {
-    PAD_IN    = 2'b00,   // only p2c meaningful
-    PAD_OUT   = 2'b01,   // only c2p meaningful
-    PAD_INOUT = 2'b10    // both meaningful; c2p_en selects at runtime
+  typedef enum logic  {
+    PAD_IN    = 1'b0,   // only p2c meaningful
+    PAD_OUT   = 1'b1    // only c2p meaningful
   } pad_dir_t;
 
 

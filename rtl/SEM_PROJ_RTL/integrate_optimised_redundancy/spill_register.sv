@@ -14,7 +14,7 @@
 
 /// Wrapper around the flushable spill register to maintain back-ward
 /// compatibility.
-module spill_register #(
+module spill_register_mod #(
   parameter type T      = logic,
   parameter bit  Bypass = 1'b0     // make this spill register transparent
 ) (
@@ -32,11 +32,15 @@ module spill_register #(
   input  logic isol_en_i,
   input  logic capture_dr_i,
   input  logic shift_dr_i,
-  input  logic update_dr_i
+  input  logic update_dr_i,
+
+  // -- JTAG Signals --
+  input  logic tdi_i,
+  output logic tdo_o
 
 );
 
-  spill_register_flushable #(
+  spill_register_flushable_mod #(
     .T(T),
     .Bypass(Bypass)
   ) spill_register_flushable_i (
@@ -52,7 +56,9 @@ module spill_register #(
     .isol_en_i,
     .capture_dr_i,
     .shift_dr_i,
-    .update_dr_i
+    .update_dr_i,
+    .tdi_i,
+    .tdo_o
   );
 
 endmodule

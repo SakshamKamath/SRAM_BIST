@@ -35,7 +35,7 @@ module obi_xbar #(
   /// Use the extended ID field (aid & rid) to route the response
   parameter bit                UseIdForRouting    = 1'b0,
   /// Connectivity matrix to disable certain paths.
-  parameter bit [NumSbrPorts-1:0][NumMgrPorts-1:0] Connectivity = '1
+  parameter bit [NumSbrPorts-1:0][NumMgrPorts-1:0] Connectivity = '1,
   /// Bypass enable for request side cuts (Subordinate side).
   parameter bit [NumSbrPorts-1:0] BypassReqSbr    = '0,
   /// Bypass enable for response side cuts (Subordinate side).
@@ -103,30 +103,30 @@ module obi_xbar #(
     .BypassRspSbr       (BypassRspSbr),
     .BypassReqMgr       (BypassReqMgr),
     .BypassRspMgr       (BypassRspMgr)
-) (
-    .clk_i                        (clk_i),
-    .rst_ni                       (rst_ni),
-    .testmode_i                   (testmode_i),
-    .tclk_i                       (tclk_i),
-    .trst_ni                      (trst_ni),
-    .tdi_i                        (tdi_i),
-    .tms_i                        (tms_i)
-    .tdo_o                        (tdo_o),
-    .mst_cut_sbr_ports_req_i      (sbr_ports_req_i), 
-    .cut_xbar_sbr_ports_req_o     (cut_out_sbr_ports_req),
-    .xbar_cut_sbr_ports_rsp_i     (cut_in_sbr_ports_rsp), 
-    .cut_mst_sbr_ports_rsp_o      (sbr_ports_rsp_o),
-    .xbar_cut_mgr_ports_req_i     (cut_in_mgr_ports_req), 
-    .cut_slv_mgr_ports_req_o      (mgr_ports_req_o),
-    .slv_cut_mgr_ports_rsp_i      (mgr_ports_rsp_i), 
-    .cut_xbar_mgr_ports_rsp_o     (cut_out_mgr_ports_rsp),
-    .addr_map_i                   (addr_map_i),
-    .addr_map_o                   (cut_out_addr_map),
-    .en_default_idx_i             (en_default_idx_i),
-    .en_default_idx_o             (cut_out_en_default_idx),
-    .default_idx_i                (default_idx_i),
-    .default_idx_o                (cut_out_default_idx)
-);
+) i_obi_jtag_top (
+                  .clk_i                        (clk_i),
+                  .rst_ni                       (rst_ni),
+                  .testmode_i                   (testmode_i),
+                  .tclk_i                       (tclk_i),
+                  .trst_ni                      (trst_ni),
+                  .tdi_i                        (tdi_i),
+                  .tms_i                        (tms_i),
+                  .tdo_o                        (tdo_o),
+                  .mst_cut_sbr_ports_req_i      (sbr_ports_req_i), 
+                  .cut_xbar_sbr_ports_req_o     (cut_out_sbr_ports_req),
+                  .xbar_cut_sbr_ports_rsp_i     (cut_in_sbr_ports_rsp), 
+                  .cut_mst_sbr_ports_rsp_o      (sbr_ports_rsp_o),
+                  .xbar_cut_mgr_ports_req_i     (cut_in_mgr_ports_req), 
+                  .cut_slv_mgr_ports_req_o      (mgr_ports_req_o),
+                  .slv_cut_mgr_ports_rsp_i      (mgr_ports_rsp_i), 
+                  .cut_xbar_mgr_ports_rsp_o     (cut_out_mgr_ports_rsp),
+                  .addr_map_i                   (addr_map_i),
+                  .addr_map_o                   (cut_out_addr_map),
+                  .en_default_idx_i             (en_default_idx_i),
+                  .en_default_idx_o             (cut_out_en_default_idx),
+                  .default_idx_i                (default_idx_i),
+                  .default_idx_o                (cut_out_default_idx)
+                 );
 
 
   logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] sbr_port_select;
@@ -255,10 +255,14 @@ module obi_xbar_intf #(
   /// Connectivity matrix to disable certain paths.
   parameter bit [NumSbrPorts-1:0][NumMgrPorts-1:0] Connectivity = '1
 ) (
-  input logic         clk_i,
-  input logic         rst_ni,
-  input logic         testmode_i,
-
+  input  logic        clk_i,
+  input  logic        rst_ni,
+  input  logic        testmode_i,
+  input  logic        trst_ni,
+  input  logic        tclk_i,
+  input  logic        tdi_i,
+  input  logic        tms_i,
+  output logic        tdo_o,
   OBI_BUS.Subordinate sbr_ports [NumSbrPorts],
 
   OBI_BUS.Manager     mgr_ports [NumMgrPorts],
@@ -307,6 +311,11 @@ module obi_xbar_intf #(
     .clk_i,
     .rst_ni,
     .testmode_i,
+    .trst_ni,
+    .tclk_i,
+    .tdi_i,
+    .tms_i,
+    .tdo_o,
     .sbr_ports_req_i  ( sbr_ports_req    ),
     .sbr_ports_rsp_o  ( sbr_ports_rsp    ),
     .mgr_ports_req_o  ( mgr_ports_req    ),

@@ -15,7 +15,7 @@
 
 /// A register with handshakes that completely cuts any combinational paths
 /// between the input and output. This spill register can be flushed.
-module spill_register_flushable #(
+module spill_register_flushable_mod #(
   parameter type T           = logic,
   parameter bit  Bypass      = 1'b0   // make this spill register transparent
 ) (
@@ -27,7 +27,7 @@ module spill_register_flushable #(
   input  T     data_i  ,
   output logic valid_o ,
   input  logic ready_i ,
-  output T     data_o
+  output T     data_o  ,
 
   //JTAG Interface
   // -- Tap Signals --
@@ -62,7 +62,7 @@ module spill_register_flushable #(
 
     //For JTAG Addition
     T a_data_d;
-    localparam int unsigned TDataBits = $bits(T)
+    localparam int unsigned TDataBits = $bits(T);
 
 
     always_ff @(posedge clk_i or negedge rst_ni) begin : ps_a_data
@@ -138,7 +138,7 @@ module spill_register_flushable #(
     // Fill the A register when the A or B register is empty. Drain the A register
     // whenever it is full and being filled, or if a flush is requested.
     // This is only done when JTAG operations are not in force
-    assign a_fill = valid_i && ready_o && (!flush_i) && (!isolate_en_i);
+    assign a_fill = valid_i && ready_o && (!flush_i) && (!isol_en_i);
     assign a_drain = (a_full_q && !b_full_q) || flush_i;
 
     // Fill the B register whenever the A register is drained, but the downstream
@@ -151,13 +151,13 @@ module spill_register_flushable #(
     // Note: flush_i and valid_i must not be high at the same time,
     // otherwise an invalid handshake may occur
     // Upstream Ready tied to 0 when JTAG opn going on
-    assign ready_o = isolate_en_i ? 1'b0: !a_full_q || !b_full_q;
+    assign ready_o = isol_en_i ? 1'b0: !a_full_q || !b_full_q;
 
     // The unit provides output as long as one of the registers is filled.
     assign valid_o = a_full_q | b_full_q;
 
     // We empty the spill register before the slice register.
-    assign data_o = isolate_en_i ? b_data_q: (b_full_q ? b_data_q : a_data_q);
+    assign data_o = isol_en_i ? b_data_q: (b_full_q ? b_data_q : a_data_q);
 
     // -- JTAG addition
     assign tdo_o   = a_data_q[0];

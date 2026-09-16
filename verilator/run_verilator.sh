@@ -77,7 +77,7 @@ build_verilator() {
         --x-initial fast \
         -O3 \
         --top tb_croc_soc \
-        -f croc.f 2>&1 | \
+        -f croc_jtag.f 2>&1 | \
         tee ${PROJ_NAME}_build.log"
 }
 

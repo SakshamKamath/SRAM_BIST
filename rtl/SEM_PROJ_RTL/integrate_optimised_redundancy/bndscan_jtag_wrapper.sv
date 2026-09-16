@@ -1,7 +1,8 @@
 module bndscan_jtag_wrapper #(
     parameter NumIOPads = 1,
     parameter IrWidth   = 4,
-    parameter type PadType_t = logic
+    parameter type PadType_t = logic,
+    parameter type PadDir_t  = logic
 )(
     input  logic                     clk_i,
     input  logic                     rst_ni,
@@ -24,9 +25,9 @@ module bndscan_jtag_wrapper #(
     input  logic                     capture_ir_i,      
     input  logic                     update_ir_i,   
 
-    input  PadType_t [NumIOPads-1:0] PadCfg_i,
-    input  logic     [NumIOPads-1:0] PadCnct_i,
-    output logic     [NumIOPads-1:0] PadCnct_o
+    input  PadDir_t  [NumIOPads-1:0] PadCfg_i,
+    input  PadType_t [NumIOPads-1:0] PadCnct_i,
+    output PadType_t [NumIOPads-1:0] PadCnct_o
 );
 
 typedef enum logic [IrWidth-1:0] {
@@ -132,8 +133,8 @@ end
 
 //----------------------- BSC Register -------------------------
 
-logic [NumIOPads-1:0] bsc_shiftreg_d, bsc_shiftreg_q; 
-logic [NumIOPads-1:0] bsc_latchedreg_d, bsc_latchedreg_q; 
+logic     [NumIOPads-1:0] bsc_shiftreg_d, bsc_shiftreg_q; 
+logic     [NumIOPads-1:0] bsc_latchedreg_d, bsc_latchedreg_q; 
 
 
 always_ff @(posedge tclk_i) begin
@@ -165,16 +166,15 @@ always_comb begin
     if(capture_dr_i) begin
         for (int i = 0; i < NumIOPads; i++) begin
             if(sampnpre_select) begin
-                bsc_shiftreg_d[i] = PadCnct_i[i];
+                bsc_shiftreg_d[i] = (PadCfg_i[i] == PAD_IN) ? PadCnct_i[i].p2c : PadCnct_i[i].c2p;
             end
 
             if(extest_select) begin
-                bsc_shiftreg_d[i] = PadCnct_i[i];
+                bsc_shiftreg_d[i] = (PadCfg_i[i] == PAD_IN) ? PadCnct_i[i].p2c : PadCnct_i[i].c2p;
             end
 
             if(intest_select) begin
-                if(PadCfg_i[i].is_input) bsc_shiftreg_d[i] = bsc_latchedreg_q[i];
-                else                     bsc_shiftreg_d[i] = PadCnct_i[i];
+                bsc_shiftreg_d[i] = (PadCfg_i[i] == PAD_IN) ? bsc_latchedreg_q[i] : PadCnct_i[i].c2p;
             end
         end
     end
@@ -272,7 +272,7 @@ always_comb begin
 
     for (int i = 0; i < NumIOPads; i++) begin
         
-        if (PadCfg_i[i].is_input) begin // For Input PADs
+        if (PadCfg_i[i] == PAD_IN) begin // For Input PADs
             if (intest_select) begin
                 PadCnct_o[i] = bsc_latchedreg_q[i];
             end else begin

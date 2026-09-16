@@ -1,7 +1,8 @@
-module bndscan_jtag_top(
+module bndscan_jtag_top #(
     parameter NumIOPads      = 1,
     parameter IrWidth        = 4,
-    parameter type PadType_t = logic
+    parameter type PadType_t = logic,
+    parameter type PadDir_t = logic
 )(
     input  logic clk_i,
     input  logic rst_ni,
@@ -14,12 +15,9 @@ module bndscan_jtag_top(
     input  logic tms_i,
     output logic tdo_o,
 
-    input  logic [NumIOPads-1:0] PadCfg_i,
-    input  logic [NumIOPads-1:0] PadCnct_i,
-
-    output logic [NumIOPads-1:0] PadCnct_o
-
-
+    input  PadDir_t  [NumIOPads-1:0] PadCfg_i,
+    input  PadType_t [NumIOPads-1:0] PadCnct_i,
+    output PadType_t [NumIOPads-1:0] PadCnct_o
 );
 
     //Controller Instantiated
@@ -44,26 +42,27 @@ module bndscan_jtag_top(
     bndscan_jtag_wrapper #(
         .NumIOPads(NumIOPads),
         .IrWidth(IrWidth),
-        .PadType_t(PadType_t)
-    )(
-        .clk_i,
-        .rst_ni,
-        .tclk_i,
-        .trst_ni,
-        .tdi_i,
-        .tms_i,
-        .tdo_o,
-        .tdo_en_o,
-        .test_logic_reset_i(test_logic_reset),
-        .capture_dr_i(capture_dr),      
-        .shift_dr_i(shift_dr),        
-        .update_dr_i(update_dr),       
-        .shift_ir_i(shift_ir),        
-        .capture_ir_i(capture_ir),      
-        .update_ir_i(update_ir),   
-        .PadCfg_i,
-        .PadCnct_i,
-        .PadCnct_o
-    );    
+        .PadType_t(PadType_t),
+        .PadDir_t(PadDir_t)
+    ) i_bndscan_jtag_wrap (
+                           .clk_i,
+                           .rst_ni,
+                           .tclk_i,
+                           .trst_ni,
+                           .tdi_i,
+                           .tms_i,
+                           .tdo_o,
+                           .tdo_en_o,
+                           .test_logic_reset_i(test_logic_reset),
+                           .capture_dr_i(capture_dr),      
+                           .shift_dr_i(shift_dr),        
+                           .update_dr_i(update_dr),       
+                           .shift_ir_i(shift_ir),        
+                           .capture_ir_i(capture_ir),      
+                           .update_ir_i(update_ir),   
+                           .PadCfg_i,
+                           .PadCnct_i,
+                           .PadCnct_o
+                         );    
 
 endmodule

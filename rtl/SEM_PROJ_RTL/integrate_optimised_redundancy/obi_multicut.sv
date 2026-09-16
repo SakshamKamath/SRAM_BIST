@@ -15,6 +15,8 @@ module obi_multicut #(
     parameter type               mgr_port_obi_req_t = sbr_port_obi_req_t,
     /// The response struct for the manager ports (output ports).
     parameter type               mgr_port_obi_rsp_t = sbr_port_obi_rsp_t,
+    /// The struct type for isolation bus signals
+    parameter type               xcnct_isol_misc_t  = logic,
     /// The number of subordinate ports (input ports).
     parameter int unsigned       NumSbrPorts        = 32'd0,
     /// The number of manager ports (output ports).
@@ -63,12 +65,11 @@ module obi_multicut #(
     // Miscellaneous Signals
     input  addr_map_rule_t [NumAddrRules-1:0]   addr_map_i,
     input  logic [NumSbrPorts-1:0]              en_default_idx_i,
-    input  logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_i
+    input  logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_i,
 
     output addr_map_rule_t [NumAddrRules-1:0]   addr_map_o,
     output logic [NumSbrPorts-1:0]              en_default_idx_o,
-    output logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_o
-
+    output logic [NumSbrPorts-1:0][cf_math_pkg::idx_width(NumMgrPorts)-1:0] default_idx_o,
 
     // Isolation Bus
     input  xcnct_isol_misc_t                    xcnct_isol_miscbus_i
@@ -94,7 +95,7 @@ always_comb begin
   xcnct_isol_misc_d = xcnct_isol_misc_q;
 
   if(isol_en_i) begin
-    if(update_dr) xcnct_isol_misc_d = xcnct_isol_miscbus_i;
+    if(update_dr_i) xcnct_isol_misc_d = xcnct_isol_miscbus_i;
   end
   else begin
     xcnct_isol_misc_d = xcnct_isol_misc_t'{
@@ -117,13 +118,13 @@ assign tdo_o         = scan_chain[TotalCuts];
 
 // Subordinate Side
 for (genvar i = 0; i < NumSbrPorts; i++) begin : gen_sbr_cuts
-    obi_cut #(
+    obi_cut_mod #(
       .ObiCfg            ( SbrPortObiCfg      ),
       .obi_a_chan_t      ( sbr_port_a_chan_t  ),
       .obi_r_chan_t      ( sbr_port_r_chan_t  ),
       .obi_req_t         ( sbr_port_obi_req_t ),
       .obi_rsp_t         ( sbr_port_obi_rsp_t ),
-      .xcnct_isol_misc_t ( xcnct_isol_misc_t  ),
+      .xcnct_isol_t      ( xcnct_isol_misc_t  ),
       .BypassReq         ( BypassReqSbr[i]    ),
       .BypassRsp         ( BypassRspSbr[i]    )
     ) i_sbr_obi_cut      ( 
@@ -152,13 +153,13 @@ for (genvar j = 0; j < NumMgrPorts; j++) begin : gen_mgr_cuts
     // Offset index in the scan chain to continue after SBR cuts
     localparam int unsigned ChainIdx = NumSbrPorts + j;
 
-    obi_cut #(
+    obi_cut_mod #(
       .ObiCfg            ( MgrPortObiCfg      ),
       .obi_a_chan_t      ( sbr_port_a_chan_t  ),
       .obi_r_chan_t      ( sbr_port_r_chan_t  ),
       .obi_req_t         ( mgr_port_obi_req_t ),
       .obi_rsp_t         ( mgr_port_obi_rsp_t ),
-      .xcnct_isol_misc_t ( xcnct_isol_misc_t  ),
+      .xcnct_isol_t      ( xcnct_isol_misc_t  ),
       .BypassReq         ( BypassReqMgr[j]    ),
       .BypassRsp         ( BypassRspMgr[j]    )
     ) i_mgr_obi_cut (

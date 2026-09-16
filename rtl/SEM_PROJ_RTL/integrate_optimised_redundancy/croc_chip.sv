@@ -103,10 +103,6 @@ module croc_chip import croc_pkg::*; #() (
     };
 
     wire [UnusedCount-1:0] unused_o_bus;
-    assign unused0_o = unused_o_bus[0];
-    assign unused1_o = unused_o_bus[1];
-    assign unused2_o = unused_o_bus[2];
-    assign unused3_o = unused_o_bus[3];
 
     pad_dir_t    [BndScanPadCount-1:0] pad_cfg;          // Static Direction configuration
     pad_signal_t [BndScanPadCount-1:0] pad_to_bndscan;   // Core outputs & Pad inputs -> BNDSCAN
@@ -116,31 +112,58 @@ module croc_chip import croc_pkg::*; #() (
     assign pad_cfg[InOfs     +: SingleInputs]  = '{SingleInputs{PAD_IN}};
     assign pad_cfg[OutOfs    +: SingleOutputs] = '{SingleOutputs{PAD_OUT}};
     assign pad_cfg[UnusedOfs +: UnusedCount]   = '{UnusedCount{PAD_OUT}};
-    assign pad_cfg[GpioOfs   +: GpioCount]     = '{GpioCount{PAD_INOUT}};
+
+    for (genvar i = 0; i < GpioCount; i++) begin
+      assign pad_cfg[GpioOfs + i] = pad_dir_t'(soc_gpio_out_en_o[i]);
+    end
 
     // -- Single inputs (only p2c meaningful) --
     assign pad_to_bndscan[InOfs+0].p2c    = soc_uart_rx_i;
     assign pad_to_bndscan[InOfs+1].p2c    = soc_testmode_i;
-    assign pad_to_bndscan[InOfs+0].c2p    = '0;
-    assign pad_to_bndscan[InOfs+1].c2p    = '0;
-    assign pad_to_bndscan[InOfs+0].c2p_en = '0;
-    assign pad_to_bndscan[InOfs+1].c2p_en = '0;
 
     // -- Single outputs (only c2p meaningful) --
     assign pad_to_bndscan[OutOfs+0].c2p    = core_uart_tx_o;
     assign pad_to_bndscan[OutOfs+1].c2p    = core_status_o;
-    assign pad_to_bndscan[OutOfs+0].p2c    = '0;
-    assign pad_to_bndscan[OutOfs+1].p2c    = '0;
-    assign pad_to_bndscan[OutOfs+0].c2p_en = '0;
-    assign pad_to_bndscan[OutOfs+1].c2p_en = '0;
 
     // -- Unused outputs --
     for (genvar i = 0; i < UnusedCount; i++) begin : gen_unused_pack
-      assign pad_to_bndscan[UnusedOfs+i].c2p    = core_unused_o_bus[i];
-      assign pad_to_bndscan[UnusedOfs+i].p2c    = '0;
-      assign pad_to_bndscan[UnusedOfs+i].c2p_en = '0;
+      assign pad_to_bndscan[UnusedOfs+i].c2p    = core_status_o;
     end
 
+    // -- GPIOs (bidirectional) --
+    for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_pack
+      if(pad_cfg[GpioOfs+i] == PAD_IN) assign pad_to_bndscan[GpioOfs+i].p2c    = soc_gpio_i[i];
+      else assign pad_to_bndscan[GpioOfs+i].c2p    = core_gpio_o[i];
+    end
+
+
+    logic core_uart_rx_i, core_testmode_i;
+    assign core_uart_rx_i  = pad_from_bndscan[InOfs+0].p2c;
+    assign core_testmode_i = pad_from_bndscan[InOfs+1].p2c;
+  
+    assign soc_uart_tx_o = pad_from_bndscan[OutOfs+0].c2p;
+    assign soc_status_o  = pad_from_bndscan[OutOfs+1].c2p;
+
+    for (genvar i = 0; i < UnusedCount; i++) begin : gen_unused_unpack
+      assign unused_o_bus[i] = pad_from_bndscan[UnusedOfs+i].c2p;
+    end
+
+    logic [GpioCount-1:0] core_gpio_i;
+    for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_unpack
+      assign core_gpio_i[i]       = pad_from_bndscan[GpioOfs+i].p2c;
+      assign soc_gpio_o[i]        = pad_from_bndscan[GpioOfs+i].c2p;
+    end
+    for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_unpack
+      if (pad_cfg[GpioOfs+i] == PAD_IN) begin : gen_in
+        // Pad is configured as an Input: Route p2c into the Core input signal
+        assign core_gpio_i[i] = pad_from_bndscan[GpioOfs+i].p2c;
+        assign soc_gpio_o[i]  = 1'b0; // Drive unused output signal to a safe default
+      end else begin : gen_out
+        // Pad is configured as an Output: Route c2p out to the SOC top-level pad
+        assign soc_gpio_o[i]  = pad_from_bndscan[GpioOfs+i].c2p;
+        assign core_gpio_i[i] = 1'b0; // Drive unused core input signal to a safe default
+      end 
+    end
 
 
 
@@ -150,7 +173,8 @@ module croc_chip import croc_pkg::*; #() (
     bndscan_jtag_top #(
     .NumIOPads ( BndScanPadCount ),
     .IrWidth   ( 4               ),
-    .PadType_t (     )
+    .PadType_t ( pad_signal_t    ),
+    .PadDir_t  ( pad_dir_t       )
   ) i_bndscan_jtag_top (
     .clk_i      ( soc_clk_i         ),
     .rst_ni     ( soc_rst_ni        ),
@@ -163,9 +187,9 @@ module croc_chip import croc_pkg::*; #() (
     .tms_i      ( soc_jtag_tms_i    ),
     .tdo_o      ( daisy_scan_chain  ),
 
-    .PadCfg_i   (   ),
-    .PadCnct_i  (   ), // From Core out to physical Pads
-    .PadCnct_o  (   )  // From Physical Pads back to Core
+    .PadCfg_i   ( pad_cfg           ),
+    .PadCnct_i  ( pad_to_bndscan    ), // From Core out to physical Pads
+    .PadCnct_o  ( pad_from_bndscan  )  // From Physical Pads back to Core
   );
 
 
@@ -224,10 +248,14 @@ module croc_chip import croc_pkg::*; #() (
     sg13cmos5l_IOPadInOut30mA pad_gpio29_io    (.pad(gpio29_io), .c2p(soc_gpio_o[29]), .p2c(soc_gpio_i[29]), .c2p_en(soc_gpio_out_en_o[29]));
     sg13cmos5l_IOPadInOut30mA pad_gpio30_io    (.pad(gpio30_io), .c2p(soc_gpio_o[30]), .p2c(soc_gpio_i[30]), .c2p_en(soc_gpio_out_en_o[30]));
     sg13cmos5l_IOPadInOut30mA pad_gpio31_io    (.pad(gpio31_io), .c2p(soc_gpio_o[31]), .p2c(soc_gpio_i[31]), .c2p_en(soc_gpio_out_en_o[31]));
-    sg13cmos5l_IOPadOut16mA   pad_unused0_o    (.pad(unused0_o), .c2p(soc_status_o));
-    sg13cmos5l_IOPadOut16mA   pad_unused1_o    (.pad(unused1_o), .c2p(soc_status_o));
-    sg13cmos5l_IOPadOut16mA   pad_unused2_o    (.pad(unused2_o), .c2p(soc_status_o));
-    sg13cmos5l_IOPadOut16mA   pad_unused3_o    (.pad(unused3_o), .c2p(soc_status_o));
+    // sg13cmos5l_IOPadOut16mA   pad_unused0_o    (.pad(unused0_o), .c2p(soc_status_o));
+    // sg13cmos5l_IOPadOut16mA   pad_unused1_o    (.pad(unused1_o), .c2p(soc_status_o));
+    // sg13cmos5l_IOPadOut16mA   pad_unused2_o    (.pad(unused2_o), .c2p(soc_status_o));
+    // sg13cmos5l_IOPadOut16mA   pad_unused3_o    (.pad(unused3_o), .c2p(soc_status_o));
+    sg13cmos5l_IOPadOut16mA   pad_unused0_o    (.pad(unused0_o), .c2p(unused_o_bus[0]));
+    sg13cmos5l_IOPadOut16mA   pad_unused1_o    (.pad(unused1_o), .c2p(unused_o_bus[1]));
+    sg13cmos5l_IOPadOut16mA   pad_unused2_o    (.pad(unused2_o), .c2p(unused_o_bus[2]));
+    sg13cmos5l_IOPadOut16mA   pad_unused3_o    (.pad(unused3_o), .c2p(unused_o_bus[3]));
 
     (* dont_touch = "true" *)sg13cmos5l_IOPadVdd pad_vdd0();
     (* dont_touch = "true" *)sg13cmos5l_IOPadVdd pad_vdd1();
@@ -257,7 +285,7 @@ module croc_chip import croc_pkg::*; #() (
     .rst_ni         ( soc_rst_ni     ),
     .ref_clk_i      ( soc_ref_clk_i  ),
     .testmode_i     ( soc_testmode_i ),
-    .status_o       ( soc_status_o   ),
+    .status_o       ( core_status_o  ),
 
     .jtag_tck_i     ( soc_jtag_tck_i   ),
     .jtag_tdi_i     ( daisy_scan_chain ),
@@ -265,12 +293,12 @@ module croc_chip import croc_pkg::*; #() (
     .jtag_tms_i     ( soc_jtag_tms_i   ),
     .jtag_trst_ni   ( soc_jtag_trst_ni ),
 
-    .uart_rx_i      ( soc_uart_rx_i ),
-    .uart_tx_o      ( soc_uart_tx_o ),
+    .uart_rx_i      ( core_uart_rx_i ),
+    .uart_tx_o      ( core_uart_tx_o ),
 
-    .gpio_i         ( soc_gpio_i        ),
-    .gpio_o         ( soc_gpio_o        ),
-    .gpio_out_en_o  ( soc_gpio_out_en_o )
+    .gpio_i         ( core_gpio_i        ),
+    .gpio_o         ( core_gpio_o        ),
+    .gpio_out_en_o  ( core_gpio_out_en_o )
   );
 
 endmodule
