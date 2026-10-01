@@ -15,8 +15,12 @@ module obi_jtag_top #(
     parameter type               sbr_port_r_chan_t  = logic,
     /// The request struct for the manager ports (output ports).
     parameter type               mgr_port_obi_req_t = sbr_port_obi_req_t,
+    /// The A channel struct for the manager ports (output ports).
+    parameter type               mgr_port_a_chan_t  = logic,
     /// The response struct for the manager ports (output ports).
     parameter type               mgr_port_obi_rsp_t = sbr_port_obi_rsp_t,
+    /// The R channel struct for the manager ports (output ports).
+    parameter type               mgr_port_r_chan_t  = logic,
     /// The number of subordinate ports (input ports).
     parameter int unsigned       NumSbrPorts        = 32'd0,
     /// The number of manager ports (output ports).
@@ -122,7 +126,9 @@ module obi_jtag_top #(
         .sbr_port_obi_rsp_t (sbr_port_obi_rsp_t ),
         .sbr_port_r_chan_t  (sbr_port_r_chan_t  ),
         .mgr_port_obi_req_t (mgr_port_obi_req_t ),
+        .mgr_port_a_chan_t  (mgr_port_a_chan_t  ),
         .mgr_port_obi_rsp_t (mgr_port_obi_rsp_t ),
+        .mgr_port_r_chan_t  (mgr_port_r_chan_t  ),
         .xcnct_isol_misc_t  (xcnct_isol_misc_t  ),
         .NumSbrPorts        (NumSbrPorts        ),
         .NumMgrPorts        (NumMgrPorts        ),
@@ -143,12 +149,12 @@ module obi_jtag_top #(
                       .update_dr_i(update_dr),
                       .tdo_o,
                       .mst_cut_sbr_ports_req_i, 
-                      .xbar_cut_sbr_ports_rsp_i,
                       .cut_xbar_sbr_ports_req_o,
+                      .xbar_cut_sbr_ports_rsp_i,
                       .cut_mst_sbr_ports_rsp_o,
                       .xbar_cut_mgr_ports_req_i, 
-                      .slv_cut_mgr_ports_rsp_i, 
                       .cut_slv_mgr_ports_req_o,
+                      .slv_cut_mgr_ports_rsp_i, 
                       .cut_xbar_mgr_ports_rsp_o,
                       .addr_map_i,
                       .en_default_idx_i,

@@ -421,10 +421,12 @@ module croc_domain import croc_pkg::*; #(
     .sbr_port_obi_rsp_t ( mgr_obi_rsp_t        ),
     .sbr_port_r_chan_t  ( mgr_obi_r_chan_t     ),
     .mgr_port_obi_req_t ( sbr_obi_req_t        ),
+    .mgr_port_a_chan_t  ( sbr_obi_a_chan_t    ),
     .mgr_port_obi_rsp_t ( sbr_obi_rsp_t        ),
+    .mgr_port_r_chan_t  ( sbr_obi_r_chan_t    ),
     .NumSbrPorts        ( NumXbarManagers      ),
     .NumMgrPorts        ( NumXbarSubordinates  ),
-    .NumMaxTrans        ( 2                    ),
+    .NumMaxTrans        ( 4                    ),
     .NumAddrRules       ( $size(CrocAddrMap)   ),
     .addr_map_rule_t    ( addr_map_rule_t      ),
     .UseIdForRouting    ( 1'b0                 ),
@@ -516,14 +518,14 @@ module croc_domain import croc_pkg::*; #(
       .tck_i   (jtag_tck_i  ),       
       .tms_i   (jtag_tms_i  ),  
       .trst_ni (jtag_trst_ni),
-      .td_i    (daisy_scan_chain[0]  ),   
-      .td_o    (daisy_scan_chain[1]  ),   
+      .td_i    ('0  ),   
+      .td_o    (    ),   
       .tdo_oe_o()
     );
 
     assign bank_gnt = 1'b1; // always ready for request
   end
-
+  assign daisy_scan_chain[1] = daisy_scan_chain[0];
 
   // Xbar space error subordinate
   obi_err_sbr #(

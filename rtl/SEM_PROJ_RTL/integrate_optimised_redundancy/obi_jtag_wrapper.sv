@@ -75,7 +75,7 @@ end
 always_comb begin
     ir_shift_reg_d = ir_shift_reg_q;
     if(capture_ir_i) begin
-        ir_shift_reg_d = { {(IrWidth - 2){1'b0}}, 2'b01 };  // As per the IEEE 1149.1 standard
+        ir_shift_reg_d = { {(IrWidth - 2){1'b0}}, 2'b00 };  // As per the IEEE 1149.1 standard
     end
     if(shift_ir_i) begin
         ir_shift_reg_d = {tdi_i, ir_shift_reg_q[IrWidth-1:1]};

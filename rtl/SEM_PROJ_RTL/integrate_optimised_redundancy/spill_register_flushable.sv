@@ -120,7 +120,7 @@ module spill_register_flushable_mod #(
         b_data_d = a_data_q;
       end
       else if (b_fill) begin // Functional Mode
-        b_data_d = data_i;
+        b_data_d = a_data_q;
       end
     end
 
@@ -160,7 +160,7 @@ module spill_register_flushable_mod #(
     assign data_o = isol_en_i ? b_data_q: (b_full_q ? b_data_q : a_data_q);
 
     // -- JTAG addition
-    assign tdo_o   = a_data_q[0];
+    assign tdo_o   = isol_en_i ? a_data_q[0] : tdi_i;
 
     `ifndef COMMON_CELLS_ASSERTS_OFF
     `ASSERT(flush_valid, flush_i |-> ~valid_i, clk_i, !rst_ni,

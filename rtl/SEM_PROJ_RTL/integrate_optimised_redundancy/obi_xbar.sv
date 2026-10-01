@@ -20,8 +20,12 @@ module obi_xbar #(
   parameter type               sbr_port_r_chan_t  = logic,
   /// The request struct for the manager ports (output ports).
   parameter type               mgr_port_obi_req_t = sbr_port_obi_req_t,
+  /// The A channel struct for the manager ports (output ports).
+  parameter type               mgr_port_a_chan_t  = logic,
   /// The response struct for the manager ports (output ports).
   parameter type               mgr_port_obi_rsp_t = sbr_port_obi_rsp_t,
+  /// The R channel struct for the manager ports (output ports).
+  parameter type               mgr_port_r_chan_t  = logic,
   /// The number of subordinate ports (input ports).
   parameter int unsigned       NumSbrPorts        = 32'd0,
   /// The number of manager ports (output ports).
@@ -93,7 +97,9 @@ module obi_xbar #(
     .sbr_port_obi_rsp_t (sbr_port_obi_rsp_t),
     .sbr_port_r_chan_t  (sbr_port_r_chan_t),
     .mgr_port_obi_req_t (mgr_port_obi_req_t),
+    .mgr_port_a_chan_t  (mgr_port_a_chan_t),
     .mgr_port_obi_rsp_t (mgr_port_obi_rsp_t),
+    .mgr_port_r_chan_t  (mgr_port_r_chan_t),
     .NumSbrPorts        (NumSbrPorts),
     .NumMgrPorts        (NumMgrPorts),
     .NumMaxTrans        (NumMaxTrans),

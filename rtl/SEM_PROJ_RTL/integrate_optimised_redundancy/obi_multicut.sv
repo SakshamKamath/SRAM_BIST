@@ -13,8 +13,12 @@ module obi_multicut #(
     parameter type               sbr_port_r_chan_t  = logic,
     /// The request struct for the manager ports (output ports).
     parameter type               mgr_port_obi_req_t = sbr_port_obi_req_t,
+    /// The A channel struct for the manager ports (output ports).
+    parameter type               mgr_port_a_chan_t  = logic,
     /// The response struct for the manager ports (output ports).
     parameter type               mgr_port_obi_rsp_t = sbr_port_obi_rsp_t,
+    /// The R channel struct for the manager ports (output ports).
+    parameter type               mgr_port_r_chan_t  = logic,
     /// The struct type for isolation bus signals
     parameter type               xcnct_isol_misc_t  = logic,
     /// The number of subordinate ports (input ports).
@@ -155,8 +159,8 @@ for (genvar j = 0; j < NumMgrPorts; j++) begin : gen_mgr_cuts
 
     obi_cut_mod #(
       .ObiCfg            ( MgrPortObiCfg      ),
-      .obi_a_chan_t      ( sbr_port_a_chan_t  ),
-      .obi_r_chan_t      ( sbr_port_r_chan_t  ),
+      .obi_a_chan_t      ( mgr_port_a_chan_t  ),
+      .obi_r_chan_t      ( mgr_port_r_chan_t  ),
       .obi_req_t         ( mgr_port_obi_req_t ),
       .obi_rsp_t         ( mgr_port_obi_rsp_t ),
       .xcnct_isol_t      ( xcnct_isol_misc_t  ),
