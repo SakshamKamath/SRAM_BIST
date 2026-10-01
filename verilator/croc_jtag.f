@@ -44,7 +44,7 @@
 ../rtl/common_cells/serial_deglitch.sv
 ../rtl/common_cells/shift_reg.sv
 ../rtl/common_cells/shift_reg_gated.sv
-../rtl/common_cells/spill_register_flushable.sv
+///../rtl/common_cells/spill_register_flushable.sv
 ../rtl/common_cells/stream_demux.sv
 ../rtl/common_cells/stream_filter.sv
 ../rtl/common_cells/stream_fork.sv
@@ -76,7 +76,7 @@
 ../rtl/common_cells/lzc.sv
 ../rtl/common_cells/max_counter.sv
 ../rtl/common_cells/rstgen.sv
-../rtl/common_cells/spill_register.sv
+///../rtl/common_cells/spill_register.sv
 ../rtl/common_cells/stream_delay.sv
 ../rtl/common_cells/stream_fifo.sv
 ../rtl/common_cells/stream_fork_dynamic.sv
@@ -161,7 +161,7 @@
 ../rtl/riscv-dbg/dm_top.sv
 ../rtl/riscv-dbg/dmi_jtag.sv
 ../rtl/riscv-dbg/dm_obi_top.sv
-../rtl/riscv-dbg/tb/jtag_test_simple.sv
+///../rtl/riscv-dbg/tb/jtag_test_simple.sv
 ../rtl/croc_pkg.sv
 ../rtl/user_pkg.sv
 ../rtl/soc_ctrl/soc_ctrl_regs_pkg.sv
@@ -195,8 +195,10 @@
 ../rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/bndscan_jtag_wrapper.sv
 ../rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/bndscan_jtag_top.sv
 ../rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/croc_chip.sv
+../rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/jtag_test_simple.sv
+../rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/croc_vip.sv
 ../rtl/croc_soc.sv
 ///../rtl/croc_chip.sv
 ../rtl/test/tb_croc_pkg.sv
-../rtl/test/croc_vip.sv
+///../rtl/test/croc_vip.sv
 ../rtl/test/tb_croc_soc.sv
