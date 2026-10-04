@@ -496,10 +496,7 @@ module croc_domain import croc_pkg::*; #(
       .DataWidth   ( 32 ),
       .NumPorts    (  1 ),
       .Latency     (  1 ),
-      .IdCodeWidth (  8 ),
-      .IdCodeVal   (  MemIDBase + i*8'h10  ),
-      .FifoDepth   (  2 ), // Depth is 2**FifoDepth
-      .IrWidth     (  4 )
+      .FifoDepth   (  2 ) // Depth is 2**FifoDepth
     ) i_sram (
       .clk_i,
       .rst_ni,
@@ -515,12 +512,11 @@ module croc_domain import croc_pkg::*; #(
       .be_i    ( bank_be    ),
       .rdata_o ( bank_rdata ),
 
-      .tck_i   (jtag_tck_i  ),       
-      .tms_i   (jtag_tms_i  ),  
-      .trst_ni (jtag_trst_ni),
-      .td_i    ('0  ),   
-      .td_o    (    ),   
-      .tdo_oe_o()
+      .mbist_start_i       (),
+      .mbist_resume_i      (),
+      .mbist_erraddrread_i (),
+      .mbist_status_o      (),
+      .mbist_erraddr_o     ()
     );
 
     assign bank_gnt = 1'b1; // always ready for request

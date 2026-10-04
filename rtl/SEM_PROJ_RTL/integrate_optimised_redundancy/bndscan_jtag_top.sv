@@ -14,6 +14,7 @@ module bndscan_jtag_top #(
     input  logic tdi_i,
     input  logic tms_i,
     output logic tdo_o,
+    output logic tdo_en_o,
 
     input  PadDir_t  [NumIOPads-1:0] PadCfg_i,
     input  PadType_t [NumIOPads-1:0] PadCnct_i,

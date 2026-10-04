@@ -14,12 +14,11 @@ module march_bist_controller #(
         input  logic trst_ni,           
 
         //Control Signals
-        input  logic start_i,
-        input  logic resume_or_reset_i,
-        input  logic erraddr_rd_i,
-        output logic busy_o,
-        output logic done_o,
-        output logic fail_o,
+        input  logic       start_i,
+        input  logic       resume_or_reset_i,
+        input  logic       erraddr_rd_i,
+        output logic [2:0] status_o,
+        output logic       bist_en_o,
 
         //Memory Related Signals
         input  logic [DataWidth -1:0] rdata_i,
@@ -404,16 +403,42 @@ if (!trst_ni) begin
     end
 end
 
+// Status Recording
+logic fail_d, busy_d, done_d;
+logic fail_q, busy_q, done_q;
+
+always_ff @( posedge tclk_i ) begin
+    if(!trst_ni) begin
+        fail_q <= 1'b0;
+        busy_q <= 1'b0;
+        done_q <= 1'b0;
+    end
+    else begin
+        fail_q <= fail_d;
+        busy_q <= busy_d;
+        done_q <= done_d;
+    end
+end
+
+
+always_comb begin
+    fail_d = !fifo_empty; 
+    busy_d = (seq_q != St_Idle) && (seq_q != St_Done);
+    done_d = (seq_q == St_Done);
+end
+
+
+
 
 // Output Assignments
-assign done_o = (seq_q == St_Done);
+
+assign status_o  = {fail_q, busy_q, done_q};
 assign memaddr_o = addr_q;
-assign busy_o    = (seq_q != St_Idle) && (seq_q != St_Done);
+assign bist_en_o = (seq_q != St_Idle) && (seq_q != St_Done);
 assign wdata_o   = wdata;
 assign memwen_o  = wen;
 assign memren_o  = ren;
-assign memen_o   = busy_o;
+assign memen_o   = busy_d;
 assign membm_o   = '1;
-assign fail_o    = !fifo_empty; 
 
 endmodule

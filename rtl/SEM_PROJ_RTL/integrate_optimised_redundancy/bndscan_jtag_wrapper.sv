@@ -1,4 +1,5 @@
-module bndscan_jtag_wrapper #(
+module bndscan_jtag_wrapper import croc_pkg::*;
+#(
     parameter NumIOPads = 1,
     parameter IrWidth   = 4,
     parameter type PadType_t = logic,

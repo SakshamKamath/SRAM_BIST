@@ -52,7 +52,14 @@ module tc_sram_impl #(
   input  data_t [NumPorts-1:0] wdata_i,
   input  be_t   [NumPorts-1:0] be_i,
 
-  output data_t [NumPorts-1:0] rdata_o
+  output data_t [NumPorts-1:0] rdata_o,
+
+  input  logic                 mbist_start_i,
+  input  logic                 mbist_resume_i,
+  input  logic                 mbist_erraddrread_i,
+  output logic  [2:0]          mbist_status_o,
+
+  output addr_t                mbist_erraddr_o
 );
 
   localparam P1L1 = (NumPorts == 1 & Latency == 1);
@@ -82,33 +89,38 @@ module tc_sram_impl #(
   logic                 march_memen;
   logic                 march_memwen;
   logic                 march_memren;
-  logic                 march_busy;
-  logic                 march_fail;
-  logic                 march_done;
+  logic [2:0]           march_status;
+  logic                 march_bisten;
   logic [AddrWidth-1:0] mbist_erraddr;
 
 
- march_bist_controller #(
-    .DataWidth(DataWidth),
-    .AddrWidth(AddrWidth),
-    .FifoDepth(FifoDepth)
+  logic [DataWidth-1:0] march_rdata;
+
+  assign march_rdata = rdata_o;
+
+  assign mbist_status_o = march_status;
+
+
+  march_bist_controller #(
+     .DataWidth(DataWidth),
+     .AddrWidth(AddrWidth),
+     .FifoDepth(FifoDepth)
   ) u_bist_controller (
     .tclk_i           (clk_i),
     .trst_ni          (rst_ni),
-    .start_i          (mbist_start),
-    .resume_or_reset_i(march_resume_or_reset),
-    .erraddr_rd_i     (mbist_erraddr_read),
-    .busy_o           (march_busy),
-    .done_o           (march_done),
-    .fail_o           (march_fail),
-    .rdata_i          (march_rdata),
-    .memaddr_o        (march_addr),
-    .wdata_o          (march_wdata),
-    .memen_o          (march_memen),
-    .memren_o         (march_memren),
-    .memwen_o         (march_memwen),
-    .membm_o          (march_bitmask),   
-    .mbist_erraddr_o  (mbist_erraddr)
+    .start_i          (mbist_start_i       ),
+    .resume_or_reset_i(mbist_resume_i      ),
+    .erraddr_rd_i     (mbist_erraddrread_i ),
+    .status_o         (march_status       ),
+    .bist_en_o        (march_bisten       ),
+    .rdata_i          (march_rdata        ),
+    .memaddr_o        (march_addr         ),
+    .wdata_o          (march_wdata        ),
+    .memen_o          (march_memen        ),
+    .memren_o         (march_memren       ),
+    .memwen_o         (march_memwen       ),
+    .membm_o          (march_bitmask      ),   
+    .mbist_erraddr_o  (mbist_erraddr_o    )
   );  
 
 
@@ -139,7 +151,7 @@ module tc_sram_impl #(
       .A_BIST_MEN   ( march_memen   ),
       .A_BIST_WEN   ( march_memwen  ),
       .A_BIST_REN   ( march_memren  ),
-      .A_BIST_EN    ( march_busy    )
+      .A_BIST_EN    ( march_bisten  )
     );
 
   end else if (NumWords == 256 & DataWidth == 64 & P1L1) begin : gen_256x64xBx1
@@ -166,7 +178,7 @@ module tc_sram_impl #(
       .A_BIST_MEN   ( march_memen   ),
       .A_BIST_WEN   ( march_memwen  ),
       .A_BIST_REN   ( march_memren  ),
-      .A_BIST_EN    ( march_busy    )
+      .A_BIST_EN    ( march_bisten    )
     );
 
   end else if (NumWords == 512 & DataWidth == 64 & P1L1) begin : gen_512x64xBx1
@@ -193,7 +205,7 @@ module tc_sram_impl #(
       .A_BIST_MEN   ( march_memen   ),
       .A_BIST_WEN   ( march_memwen  ),
       .A_BIST_REN   ( march_memren  ),
-      .A_BIST_EN    ( march_busy    )
+      .A_BIST_EN    ( march_bisten    )
     );
 
   end else if (NumWords == 1024 & DataWidth == 64 & P1L1) begin : gen_1024x64xBx1
@@ -220,7 +232,7 @@ module tc_sram_impl #(
        .A_BIST_MEN   ( march_memen   ),
        .A_BIST_WEN   ( march_memwen  ),
        .A_BIST_REN   ( march_memren  ),
-       .A_BIST_EN    ( march_busy    )
+       .A_BIST_EN    ( march_bisten    )
       );
 
   end else if (NumWords == 2048 & DataWidth == 64 & P1L1) begin : gen_2048x64xBx1
@@ -247,7 +259,7 @@ module tc_sram_impl #(
        .A_BIST_MEN   ( march_memen   ),
        .A_BIST_WEN   ( march_memwen  ),
        .A_BIST_REN   ( march_memren  ),
-       .A_BIST_EN    ( march_busy    )
+       .A_BIST_EN    ( march_bisten    )
       );
   end else if (NumWords == 512 && DataWidth == 32 && P1L1) begin: gen_512x32xBx1
     logic [63:0] wdata64, rdata64, bm64;
@@ -277,7 +289,7 @@ module tc_sram_impl #(
     end
 
     // LSB needed for read in next cycle
-    assign sel_d = march_busy ? march_addr[0]: addr_i[0][0];
+    assign sel_d = march_bisten ? march_addr[0]: addr_i[0][0];
 
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mem_sel_q
       if(~rst_ni)             sel_q <= '0;
@@ -301,7 +313,7 @@ module tc_sram_impl #(
      .A_BIST_MEN   ( march_memen     ),
      .A_BIST_WEN   ( march_memwen    ),
      .A_BIST_REN   ( march_memren    ),
-     .A_BIST_EN    ( march_busy      )
+     .A_BIST_EN    ( march_bisten      )
     );
 
   end else if (NumWords == 1024 && DataWidth == 32 && P1L1) begin: gen_1024x32xBx1
@@ -332,7 +344,7 @@ module tc_sram_impl #(
     end
 
     // LSB needed for read in next cycle
-    assign sel_d = march_busy ? march_addr[0]: addr_i[0][0];
+    assign sel_d = march_bisten ? march_addr[0]: addr_i[0][0];
 
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mem_sel_q
       if(~rst_ni)             sel_q <= '0;
@@ -356,7 +368,7 @@ module tc_sram_impl #(
      .A_BIST_MEN   ( march_memen     ),
      .A_BIST_WEN   ( march_memwen    ),
      .A_BIST_REN   ( march_memren    ),
-     .A_BIST_EN    ( march_busy      )
+     .A_BIST_EN    ( march_bisten      )
     );
   end else if (NumWords == 2048 && DataWidth == 32 && P1L1) begin: gen_2048x32xBx1
     logic [63:0] wdata64, rdata64, bm64;
@@ -386,7 +398,7 @@ module tc_sram_impl #(
     end
 
     // LSB needed for read in next cycle
-    assign sel_d = march_busy ? march_addr[0]: addr_i[0][0];
+    assign sel_d = march_bisten ? march_addr[0]: addr_i[0][0];
 
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mem_sel_q
       if(~rst_ni)             sel_q <= '0;
@@ -410,7 +422,7 @@ module tc_sram_impl #(
      .A_BIST_MEN   ( march_memen      ),
      .A_BIST_WEN   ( march_memwen     ),
      .A_BIST_REN   ( march_memren     ),
-     .A_BIST_EN    ( march_busy       )
+     .A_BIST_EN    ( march_bisten       )
     );
 
   end else if (NumWords == 2048 & DataWidth == 64 & P1L1) begin : gen_2048x64xBx1
@@ -437,7 +449,7 @@ module tc_sram_impl #(
        .A_BIST_MEN   ( march_memen   ),
        .A_BIST_WEN   ( march_memwen  ),
        .A_BIST_REN   ( march_memren  ),
-       .A_BIST_EN    ( march_busy    )
+       .A_BIST_EN    ( march_bisten    )
       );
 
   end else begin : gen_blackbox
