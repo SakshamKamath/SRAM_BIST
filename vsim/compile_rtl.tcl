@@ -429,7 +429,7 @@ if {[catch { vlog -incr -sv \
     "+incdir+${ROOT}/rtl/obi/include" \
     "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/croc_pkg.sv" \
     "${ROOT}/rtl/user_pkg.sv" \
-    "${ROOT}/rtl/soc_ctrl/soc_ctrl_regs_pkg.sv" \
+    "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/soc_ctrl_regs_pkg.sv" \
     "${ROOT}/rtl/gpio/gpio_reg_pkg.sv" \
     "${ROOT}/rtl/clint/clint_reg_pkg.sv" \
     "${ROOT}/rtl/obi_timer/obi_timer_reg_pkg.sv" \
@@ -453,7 +453,7 @@ if {[catch { vlog -incr -sv \
     "+incdir+${ROOT}/rtl/obi/include" \
     "${ROOT}/rtl/core_wrap.sv" \
     "${ROOT}/rtl/bootrom/bootrom.sv" \
-    "${ROOT}/rtl/soc_ctrl/soc_ctrl_regs.sv" \
+    "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/soc_ctrl_regs.sv" \
     "${ROOT}/rtl/gpio/gpio_reg_top.sv" \
     "${ROOT}/rtl/gpio/gpio.sv" \
     "${ROOT}/rtl/clint/clint.sv" \
