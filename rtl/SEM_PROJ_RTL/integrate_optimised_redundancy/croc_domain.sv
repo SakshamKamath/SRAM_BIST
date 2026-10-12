@@ -58,6 +58,12 @@ module croc_domain import croc_pkg::*; #(
   logic debug_req;
   logic fetch_enable;
 
+  logic [NumSramBanks-1:0]     mbist_start;
+  logic [NumSramBanks-1:0]     mbist_resume_or_reset;
+  logic [NumSramBanks-1:0]     mbist_erraddr_read;
+  logic [NumSramBanks-1:0][3:0]mbist_status;
+
+
   // interrupts (irqs)
   logic clint_timer_irq;
   logic clint_software_irq;
@@ -512,10 +518,10 @@ module croc_domain import croc_pkg::*; #(
       .be_i    ( bank_be    ),
       .rdata_o ( bank_rdata ),
 
-      .mbist_start_i       (),
-      .mbist_resume_i      (),
-      .mbist_erraddrread_i (),
-      .mbist_status_o      (),
+      .mbist_start_i       (mbist_start[i]),
+      .mbist_resume_i      (mbist_resume_or_reset[i]),
+      .mbist_erraddrread_i (mbist_erraddr_read[i]),
+      .mbist_status_o      (mbist_status[i]),
       .mbist_erraddr_o     ()
     );
 
@@ -588,10 +594,15 @@ module croc_domain import croc_pkg::*; #(
   ) i_soc_ctrl (
     .clk_i,
     .rst_ni,
-    .obi_req_i  ( soc_ctrl_obi_req ),
-    .obi_rsp_o  ( soc_ctrl_obi_rsp ),
-    .fetch_en_o ( fetch_enable     ),
-    .sram_dly_o ( sram_impl        )
+    .obi_req_i              ( soc_ctrl_obi_req      ),
+    .mbist_status_i         ( mbist_status          ),
+    // .mbist_erraddr_i        (),
+    .obi_rsp_o              ( soc_ctrl_obi_rsp      ),
+    .fetch_en_o             ( fetch_enable          ),
+    .sram_dly_o             ( sram_impl             ),
+    .mbist_start_o          ( mbist_start           ),
+    .mbist_resume_or_reset_o( mbist_resume_or_reset ),
+    .mbist_erraddr_read_o   ( mbist_erraddr_read    )
   );
 
   // UART

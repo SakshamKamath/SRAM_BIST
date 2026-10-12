@@ -17,7 +17,7 @@ module march_bist_controller #(
         input  logic       start_i,
         input  logic       resume_or_reset_i,
         input  logic       erraddr_rd_i,
-        output logic [2:0] status_o,
+        output logic [3:0] status_o,
         output logic       bist_en_o,
 
         //Memory Related Signals
@@ -432,7 +432,7 @@ end
 
 // Output Assignments
 
-assign status_o  = {fail_q, busy_q, done_q};
+assign status_o  = {1'b0, fail_q, busy_q, done_q};
 assign memaddr_o = addr_q;
 assign bist_en_o = (seq_q != St_Idle) && (seq_q != St_Done);
 assign wdata_o   = wdata;

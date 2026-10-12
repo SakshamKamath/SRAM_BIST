@@ -57,7 +57,7 @@ module tc_sram_impl #(
   input  logic                 mbist_start_i,
   input  logic                 mbist_resume_i,
   input  logic                 mbist_erraddrread_i,
-  output logic  [2:0]          mbist_status_o,
+  output logic  [3:0]          mbist_status_o,
 
   output addr_t                mbist_erraddr_o
 );
@@ -89,7 +89,7 @@ module tc_sram_impl #(
   logic                 march_memen;
   logic                 march_memwen;
   logic                 march_memren;
-  logic [2:0]           march_status;
+  logic [3:0]           march_status;
   logic                 march_bisten;
   logic [AddrWidth-1:0] mbist_erraddr;
 
@@ -291,9 +291,12 @@ module tc_sram_impl #(
     // LSB needed for read in next cycle
     assign sel_d = march_bisten ? march_addr[0]: addr_i[0][0];
 
+    logic sel_en;
+    assign sel_en = march_bisten ? march_memren : (req_i & ~we_i);
+
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mem_sel_q
       if(~rst_ni)             sel_q <= '0;
-      else if (req_i & ~we_i) sel_q <= sel_d;
+      else if (sel_en) sel_q <= sel_d;
     end
 
     RM_IHPSG13_1P_256x64_c2_bm_bist i_cut (
@@ -346,10 +349,14 @@ module tc_sram_impl #(
     // LSB needed for read in next cycle
     assign sel_d = march_bisten ? march_addr[0]: addr_i[0][0];
 
+    logic sel_en;
+    assign sel_en = march_bisten ? march_memren : (req_i & ~we_i);
+
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mem_sel_q
       if(~rst_ni)             sel_q <= '0;
-      else if (req_i & ~we_i) sel_q <= sel_d;
+      else if (sel_en) sel_q <= sel_d;
     end
+
 
     RM_IHPSG13_1P_512x64_c2_bm_bist i_cut (
      .A_CLK   ( clk_i   ),
@@ -400,9 +407,12 @@ module tc_sram_impl #(
     // LSB needed for read in next cycle
     assign sel_d = march_bisten ? march_addr[0]: addr_i[0][0];
 
+    logic sel_en;
+    assign sel_en = march_bisten ? march_memren : (req_i & ~we_i);
+
     always_ff @(posedge clk_i or negedge rst_ni) begin : proc_mem_sel_q
       if(~rst_ni)             sel_q <= '0;
-      else if (req_i & ~we_i) sel_q <= sel_d;
+      else if (sel_en) sel_q <= sel_d;
     end
 
     RM_IHPSG13_1P_1024x64_c2_bm_bist i_cut (
