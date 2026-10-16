@@ -33,9 +33,9 @@
 .globl _start
 .section .text._start
 _start:
-  la      sp, __stack_pointer$
   .option push
-  .option norelax
+  .option norelax        # gp is not set yet: no gp-relative relaxation of either la
+  la      sp, __stack_pointer$
   la      gp, __global_pointer$
   .option pop
   tail    main

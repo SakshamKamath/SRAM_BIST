@@ -22,9 +22,10 @@ RISCV_STRIP   ?= $(RISCV_PREFIX)strip
 
 # Compiler and linker flags
 RISCV_FLAGS ?= -march=$(RISCV_MARCH) -mabi=$(RISCV_MABI) -mcmodel=medany \
-	-static -std=gnu99 -Os -nostdlib -fno-builtin -ffreestanding
+	-static -std=gnu99 -Os -nostdlib -fno-builtin -ffreestanding \
+	-ffunction-sections -fdata-sections
 RISCV_CCFLAGS ?= $(RISCV_FLAGS) -Iinclude -I$(INCDIR) -I$(CURDIR)
-RISCV_LDFLAGS ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS)
+RISCV_LDFLAGS ?= -static -nostartfiles -lm -lgcc $(RISCV_FLAGS) -Wl,--gc-sections
 
 
 # Directory defaults
@@ -34,6 +35,10 @@ CRT0     ?= crt0.S
 LINK     ?= link.ld
 SRCDIR   ?= lib/src
 INCDIR   ?= lib/inc
+
+# MBIST on macro 1 overwrites SRAM bank 1 (0x1000_0800-0x1000_0FFF):
+# keep the stack (and, via the link.ld ASSERT, all code/data) in bank 0.
+$(BINDIR)/test/test_mbist.elf: RISCV_LDFLAGS += '-Wl,--defsym=__stack_pointer$$=0x10000800'
 
 # Collecting source files
 LIB_SOURCES  := $(wildcard $(SRCDIR)/*.[cS])

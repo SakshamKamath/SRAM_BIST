@@ -13,7 +13,8 @@ module soc_ctrl_regs #(
   parameter int unsigned BootAddrDefault = 32'h0,
 
   //Do not override
-  parameter int unsigned NumSramBanks    = croc_pkg:: NumSramBanks
+  parameter int unsigned NumSramBanks    = croc_pkg:: NumSramBanks,
+  parameter int unsigned ErrAddrWidth    = $clog2(croc_pkg::SramBankNumWords)  // word address within a bank
 ) (
   input  logic                        clk_i,
   input  logic                        rst_ni,
@@ -24,6 +25,7 @@ module soc_ctrl_regs #(
   output logic                        sram_dly_o,
   // MBIST Signals
   input  logic [NumSramBanks-1:0][3:0]mbist_status_i,
+  input  logic [NumSramBanks-1:0][ErrAddrWidth-1:0] mbist_erraddr_i,  // head of each error FIFO
   output logic [NumSramBanks-1:0]     mbist_start_o,
   output logic [NumSramBanks-1:0]     mbist_resume_or_reset_o,
   output logic [NumSramBanks-1:0]     mbist_erraddr_read_o
@@ -104,6 +106,29 @@ module soc_ctrl_regs #(
   assign fetch_en_o = fetch_en_q;
   assign sram_dly_o = sram_dly_q;
 
+  // Error-address FIFO windows: MBIST_ERRADDR_FIFO_OFFSET0 + 4*i for macro i
+  logic [IntAddrWidth-1:0] a_offset, r_offset;
+  assign a_offset = {obi_req_i.a.addr[IntAddrWidth-1:2], 2'b00};
+  assign r_offset = {addr_q, 2'b00};
+
+  logic                    a_erraddr_hit, r_erraddr_hit;
+  logic [IntAddrWidth-3:0] a_erraddr_idx, r_erraddr_idx;
+  assign a_erraddr_idx = a_offset[IntAddrWidth-1:2] - MBIST_ERRADDR_FIFO_OFFSET0[IntAddrWidth-1:2];
+  assign r_erraddr_idx = r_offset[IntAddrWidth-1:2] - MBIST_ERRADDR_FIFO_OFFSET0[IntAddrWidth-1:2];
+  assign a_erraddr_hit = (a_offset >= MBIST_ERRADDR_FIFO_OFFSET0) && (a_erraddr_idx < NumSramBanks);
+  assign r_erraddr_hit = (r_offset >= MBIST_ERRADDR_FIFO_OFFSET0) && (r_erraddr_idx < NumSramBanks);
+
+  // Pop-on-read: the pop pulse lands in the R phase, so the read returns the current head
+  // and the FIFO advances at the end of that cycle.
+  logic [NumSramBanks-1:0] erraddr_pop_d, erraddr_pop_q;
+  `FF(erraddr_pop_q, erraddr_pop_d, '0, clk_i, rst_ni)
+
+  always_comb begin
+    erraddr_pop_d = '0;
+    if (obi_req_i.req && !obi_req_i.a.we && a_erraddr_hit)
+      erraddr_pop_d[a_erraddr_idx] = 1'b1;
+  end
+
   // Address phase: update writable registers
   always_comb begin : write_fsm
     boot_addr_d   = boot_addr_q;
@@ -140,7 +165,11 @@ module soc_ctrl_regs #(
     obi_rsp_o.r.rid  = id_q;
     mbist_status_d   = mbist_status_i;
     if (req_q) begin
-      if (!we_q) begin
+      if (!we_q && r_erraddr_hit) begin
+        // valid = fail bit (FIFO not empty) of that macro
+        obi_rsp_o.r.rdata = {mbist_status_i[r_erraddr_idx][2], {(31-ErrAddrWidth){1'b0}},
+                             mbist_erraddr_i[r_erraddr_idx]};
+      end else if (!we_q) begin
         unique case ({addr_q, 2'b00})
           SOC_CTRL_BOOTADDR_OFFSET:   obi_rsp_o.r.rdata = boot_addr_q;
           SOC_CTRL_FETCHEN_OFFSET:    obi_rsp_o.r.rdata = {31'h0, fetch_en_q};
@@ -173,6 +202,6 @@ module soc_ctrl_regs #(
 
 assign mbist_start_o            =  mbist_start_q[NumSramBanks-1:0];
 assign mbist_resume_or_reset_o  =  mbist_resume_or_reset_q[NumSramBanks-1:0];
-assign mbist_erraddr_read_o     =  mbist_erraddr_read_q[NumSramBanks-1:0];
+assign mbist_erraddr_read_o     =  mbist_erraddr_read_q[NumSramBanks-1:0] | erraddr_pop_q;  // write to 0x48 = discard, read of FIFO window = pop
 
 endmodule

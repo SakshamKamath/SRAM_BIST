@@ -85,3 +85,7 @@ PROVIDE(_trap_exit = 0x02000300);
 
 /* SoC register symbols */
 PROVIDE(corestatus = 0x03000008);
+
+/* Leave at least 512 B of stack below __stack_pointer$ (catches MBIST test overlapping bank 1) */
+ASSERT(ADDR(.misc) + SIZEOF(.misc) <= __stack_pointer$ - 0x200,
+       "code/data overlaps the stack region")

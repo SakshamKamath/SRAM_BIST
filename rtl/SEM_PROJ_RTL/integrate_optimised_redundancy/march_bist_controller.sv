@@ -404,27 +404,30 @@ if (!trst_ni) begin
 end
 
 // Status Recording
-logic fail_d, busy_d, done_d;
-logic fail_q, busy_q, done_q;
+logic fail_d, busy_d, done_d, pause_d;
+logic fail_q, busy_q, done_q, pause_q;
 
 always_ff @( posedge tclk_i ) begin
     if(!trst_ni) begin
-        fail_q <= 1'b0;
-        busy_q <= 1'b0;
-        done_q <= 1'b0;
+        pause_q <= 1'b0;
+        fail_q  <= 1'b0;
+        busy_q  <= 1'b0;
+        done_q  <= 1'b0;
     end
     else begin
-        fail_q <= fail_d;
-        busy_q <= busy_d;
-        done_q <= done_d;
+        pause_q <= pause_d;
+        fail_q  <= fail_d;
+        busy_q  <= busy_d;
+        done_q  <= done_d;
     end
 end
 
 
 always_comb begin
-    fail_d = !fifo_empty; 
-    busy_d = (seq_q != St_Idle) && (seq_q != St_Done);
-    done_d = (seq_q == St_Done);
+    pause_d = (seq_q == St_RepairWait);   // FIFO full, waiting for resume_or_reset
+    fail_d  = !fifo_empty; 
+    busy_d  = (seq_q != St_Idle) && (seq_q != St_Done);
+    done_d  = (seq_q == St_Done);
 end
 
 
@@ -432,7 +435,7 @@ end
 
 // Output Assignments
 
-assign status_o  = {1'b0, fail_q, busy_q, done_q};
+assign status_o  = {pause_q, fail_q, busy_q, done_q};
 assign memaddr_o = addr_q;
 assign bist_en_o = (seq_q != St_Idle) && (seq_q != St_Done);
 assign wdata_o   = wdata;

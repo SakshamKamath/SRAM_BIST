@@ -62,6 +62,7 @@ module croc_domain import croc_pkg::*; #(
   logic [NumSramBanks-1:0]     mbist_resume_or_reset;
   logic [NumSramBanks-1:0]     mbist_erraddr_read;
   logic [NumSramBanks-1:0][3:0]mbist_status;
+  logic [NumSramBanks-1:0][$clog2(SramBankNumWords)-1:0] mbist_erraddr;  // error FIFO head per bank
 
 
   // interrupts (irqs)
@@ -522,7 +523,7 @@ module croc_domain import croc_pkg::*; #(
       .mbist_resume_i      (mbist_resume_or_reset[i]),
       .mbist_erraddrread_i (mbist_erraddr_read[i]),
       .mbist_status_o      (mbist_status[i]),
-      .mbist_erraddr_o     ()
+      .mbist_erraddr_o     (mbist_erraddr[i])
     );
 
     assign bank_gnt = 1'b1; // always ready for request
@@ -596,7 +597,7 @@ module croc_domain import croc_pkg::*; #(
     .rst_ni,
     .obi_req_i              ( soc_ctrl_obi_req      ),
     .mbist_status_i         ( mbist_status          ),
-    // .mbist_erraddr_i        (),
+    .mbist_erraddr_i        ( mbist_erraddr         ),
     .obi_rsp_o              ( soc_ctrl_obi_rsp      ),
     .fetch_en_o             ( fetch_enable          ),
     .sram_dly_o             ( sram_impl             ),
