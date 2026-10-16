@@ -1,6 +1,22 @@
 # This script was generated automatically by bender.
 set ROOT ".."
 
+# --- SRAM implementation: normal or MBIST fault injection (run_vsim.sh --mbist-fault) ---
+# Both variants use the same module names (tc_sram_impl, SRAM_1P_behavioral_bm_bist), so
+# these files are compiled without -incr: switching MBIST_FAULT always replaces them.
+if {![info exists MBIST_FAULT]} { set MBIST_FAULT 0 }
+set SEM_RTL "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy"
+if {$MBIST_FAULT} {
+    puts "INFO: compile_rtl.tcl: MBIST_FAULT=1, SRAM uses fault model (see mbist_fault_cfg_pkg.sv)"
+    set SRAM_CORE_MODEL "${ROOT}/rtl/RM_IHPSG13_1P_core_behavioral_bm_bist_fault_model.v"
+    set SRAM_IMPL_FILES [list "${SEM_RTL}/mbist_fault_cfg_pkg.sv" "${SEM_RTL}/tc_sram_impl_fault.sv"]
+} else {
+    puts "INFO: compile_rtl.tcl: MBIST_FAULT=0, normal SRAM model"
+    set SRAM_CORE_MODEL "${ROOT}/technology/verilog/RM_IHPSG13_1P_core_behavioral_bm_bist.v"
+    set SRAM_IMPL_FILES [list "${SEM_RTL}/tc_sram_impl_mod.sv"]
+}
+if {[catch { vlog -sv "+define+TECHFUNCTIONAL" "+define+FUNCTIONAL" "+define+SIM" $SRAM_CORE_MODEL }]} {return 1}
+
 if {[catch { vlog -incr -sv \
     -svinputport=compat \
     "+define+TARGET_IHP13" \
@@ -391,7 +407,7 @@ if {[catch { vlog -incr -sv \
     "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/march_bist_controller.sv" \
 }]} {return 1}
 
-if {[catch { vlog -incr -sv \
+if {[catch { vlog -sv \
     -svinputport=compat \
     "+define+TARGET_IHP13" \
     "+define+TARGET_RTL" \
@@ -408,7 +424,7 @@ if {[catch { vlog -incr -sv \
     "+incdir+${ROOT}/rtl/idma/include" \
     "+incdir+${ROOT}/rtl/obi/include" \
     "${ROOT}/ihp13/tc_clk.sv" \
-    "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/tc_sram_impl_mod.sv" \
+    {*}$SRAM_IMPL_FILES \
 }]} {return 1}
 
 if {[catch { vlog -incr -sv \

@@ -503,7 +503,8 @@ module croc_domain import croc_pkg::*; #(
       .DataWidth   ( 32 ),
       .NumPorts    (  1 ),
       .Latency     (  1 ),
-      .FifoDepth   (  2 ) // Depth is 2**FifoDepth
+      .FifoDepth   (  2 ), // Depth is 2**FifoDepth
+      .BankIdx     (  i )  // selects the faulty bank with run_vsim.sh --mbist-fault
     ) i_sram (
       .clk_i,
       .rst_ni,

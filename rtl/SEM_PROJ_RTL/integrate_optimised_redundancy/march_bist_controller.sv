@@ -90,8 +90,6 @@ logic read_logged_d, read_logged_q;
 // Registers for resumption after repair
 seq_e                    recov_seq_d, recov_seq_q;
 
-logic is_recov_downward;
-assign is_recov_downward = (recov_seq_q == St_Stage3) || (recov_seq_q == St_Stage4);
 
 always_comb begin
         seq_d         = seq_q;
@@ -108,7 +106,13 @@ always_comb begin
 
         recov_seq_d    = recov_seq_q;
 
-    if (fifo_full && (seq_q != St_Idle) && (seq_q != St_RepairWait)) begin
+    // Pause only between addresses (sub_op_q == 0), so the operations of the current
+    // address are never cut short. No error is lost meanwhile: after the logged one, the
+    // same address is not logged again (read_logged_q). addr_q already points to the next
+    // address to test, so resume continues from there. No pause in St_Done: nothing more
+    // is logged after the run.
+    if (fifo_full && (sub_op_q == 2'd0) &&
+        (seq_q != St_Idle) && (seq_q != St_Done) && (seq_q != St_RepairWait)) begin
         seq_d = St_RepairWait;
         recov_seq_d    = seq_q;
     end else begin
@@ -278,13 +282,15 @@ always_comb begin
                                 2'd0: begin
                                     ren      = 1'b1;
                                     sub_op_d = 2'd1;
+                                    // Clear here, not in 2'd1: there a logged error sets it
+                                    // again in the same cycle, dropping the next address.
+                                    read_logged_d = 1'b0;
                                 end
                                 2'd1: begin
                                     if (rdata_i != DATA_ZERO) begin
                                         read_error = 1'b1;
                                     end
                                     sub_op_d = 2'd0;
-                                    read_logged_d = 1'b0;
                                     if (is_last_addr) begin
                                         seq_d = St_Done;
                                     end else begin
@@ -304,28 +310,11 @@ always_comb begin
 
             St_RepairWait:  begin
                                 if (resume_or_reset_i) begin
-                                    sub_op_d      = 2'd0; // Reset sub-op to start fresh at the next address
+                                    // Paused between addresses: seq/addr already point to the
+                                    // next untested address (also across a stage change).
+                                    seq_d         = recov_seq_q;
+                                    sub_op_d      = 2'd0;
                                     read_logged_d = 1'b0;
-
-                                    if (is_recov_downward) begin
-                                        if (addr_q == '0) begin // Downward boundary check
-                                            seq_d  = (recov_seq_q == St_Stage3) ? St_Stage4 : St_Stage5;
-                                            addr_d = (recov_seq_q == St_Stage3) ? (NumWords - 1) : '0;
-                                        end else begin
-                                            seq_d  = recov_seq_q;
-                                            addr_d = addr_q - 1'b1;
-                                        end
-                                    end else begin
-                                        if (addr_q == NumWords - 1) begin // Upward boundary check
-                                            seq_d  = (recov_seq_q == St_Stage0) ? St_Stage1 :
-                                                     (recov_seq_q == St_Stage1) ? St_Stage2 :
-                                                     (recov_seq_q == St_Stage2) ? St_Stage3 : St_Done;
-                                            addr_d = (recov_seq_q == St_Stage2) ? (NumWords - 1) : '0;
-                                        end else begin
-                                            seq_d  = recov_seq_q;
-                                            addr_d = addr_q + 1'b1;
-                                        end
-                                    end
                                 end
                             end
 

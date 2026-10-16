@@ -33,6 +33,7 @@ module tc_sram_impl #(
   parameter impl_out_t   ImplOutSim   = '0,
   parameter int unsigned FifoDepth    = 32'd2,  // Depth is 2**FifoDepth
   parameter bit          BistEnable   = 1'b1,
+  parameter int unsigned BankIdx      = 32'd0,  // SRAM bank index (only used by tc_sram_impl_fault.sv)
   // DEPENDENT PARAMETERS, DO NOT OVERWRITE!
   parameter int unsigned AddrWidth    = (NumWords > 32'd1) ? $clog2(NumWords) : 32'd1,
   parameter int unsigned BeWidth      = (DataWidth + ByteWidth - 32'd1) / ByteWidth,

@@ -28,6 +28,9 @@ VSIM=${VSIM:-questa-2023.4 vsim}
 # 1 = RTL simulation with IHP13 cells and SRAM macro models (see --techfunctional)
 TECHFUNCTIONAL=${TECHFUNCTIONAL:-0}
 
+# 1 = SRAM banks use the fault-injection model (see --mbist-fault)
+MBIST_FAULT=${MBIST_FAULT:-0}
+
 mkdir -p reports
 
 ################
@@ -48,6 +51,10 @@ Options:
     --techfunctional    Use IHP13 tech cells and SRAM macro models in RTL sim
                         (same as TECHFUNCTIONAL=1). Default: generic tech cells.
                         Use the same setting for --flist and --build.
+    --mbist-fault       Build with tc_sram_impl_fault.sv + the SRAM fault model instead of
+                        tc_sram_impl_mod.sv (same as MBIST_FAULT=1). Faults are set in
+                        rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/mbist_fault_cfg_pkg.sv.
+                        Only affects --build; rebuild without it to go back.
     --flist             Regenerate compile script reading sources (compile_rtl.tcl, compile_netlist.tcl)
     --build             Compile Croc RTL in VSIM
     --build-netlist     Compile Croc post-synthesis netlist in VSIM
@@ -60,6 +67,9 @@ Example:
 
     # RTL simulation with IHP13 cells and SRAM macros
     ./run_vsim.sh --techfunctional --flist --build --run ../sw/bin/helloworld.hex
+
+    # MBIST test with injected SRAM faults
+    ./run_vsim.sh --techfunctional --mbist-fault --build --run ../sw/bin/test/test_mbist.hex
 EOF
     exit 0
 }
@@ -84,11 +94,11 @@ rtl_extra_targets() {
 
 # What QuestaSim sources at compile time. Tech models must come first.
 rtl_compile_do() {
-    # compile_rtl.tcl reads the Tcl variable TECHFUNCTIONAL to pick files and defines
+    # compile_rtl.tcl reads the Tcl variables TECHFUNCTIONAL and MBIST_FAULT to pick files and defines
     if [ "$TECHFUNCTIONAL" = 1 ]; then
-        echo "set TECHFUNCTIONAL 1; source compile_tech_func.tcl; source compile_rtl.tcl; exit"
+        echo "set TECHFUNCTIONAL 1; set MBIST_FAULT ${MBIST_FAULT}; source compile_tech_func.tcl; source compile_rtl.tcl; exit"
     else
-        echo "set TECHFUNCTIONAL 0; source compile_rtl.tcl; exit"
+        echo "set TECHFUNCTIONAL 0; set MBIST_FAULT ${MBIST_FAULT}; source compile_rtl.tcl; exit"
     fi
 }
 
@@ -156,7 +166,7 @@ generate_netlist_flist() {
 
 
 compile_rtl() {
-    run_cmd "echo [INFO][VSIM] Compile TECHFUNCTIONAL=${TECHFUNCTIONAL}"
+    run_cmd "echo [INFO][VSIM] Compile TECHFUNCTIONAL=${TECHFUNCTIONAL} MBIST_FAULT=${MBIST_FAULT}"
     run_cmd "${VSIM} \
         -c \
         -do \"$(rtl_compile_do)\" \
@@ -255,6 +265,7 @@ for arg in "$@"; do
     [[ "$arg" == -v || "$arg" == --verbose ]] && set -x
     [[ "$arg" == -n || "$arg" == --dry-run ]] && DRYRUN=1
     [[ "$arg" == --techfunctional ]] && TECHFUNCTIONAL=1
+    [[ "$arg" == --mbist-fault ]] && MBIST_FAULT=1
 done
 
 # parse arguments
@@ -270,6 +281,9 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --techfunctional)
+            shift
+            ;;
+        --mbist-fault)
             shift
             ;;
         # script-specific commands
