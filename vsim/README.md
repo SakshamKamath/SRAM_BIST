@@ -118,14 +118,26 @@ To go back to the normal SRAM: `./run_vsim.sh --build` (without `--mbist-fault`)
 Only on `tb_croc_chip` (the boundary-scan TAP is in `croc_chip`). The testbench drives
 the boundary-scan TAP over JTAG; `sw/test/test_bscan.c` is the core side.
 
-| Part | Check |
-|---|---|
-| A (before program load) | BYPASS: chain of 5 bypass bits (bndscan 2, obi_jtag 2, DMI 1) |
-| | SAMPLE: GPIO, uart_rx, testmode, status, unused cells capture the pins (pattern and inverse) |
-| | EXTEST: BSR drives status and unused0..3 pins; back to the core in BYPASS |
-| B (test_bscan running) | SAMPLE: core GPIO outputs (`0xA5` on gpio[15:8]) captured in the BSR |
-| | INTEST: core reads gpio[23:16] from the BSR (`0x3C`) instead of the pins (`0x00`), seen in its echo on gpio[15:8] |
-| | INTEST: output cells capture the core outputs; BYPASS returns the core to the pins |
+34 checks:
+
+| Part | Area | Check |
+|---|---|---|
+| A (before program load) | Instructions | BYPASS chain = 5 bits (bndscan 2, obi_jtag 2, DMI 1); IR capture value `0000`; unused opcodes 4..15 act as BYPASS |
+| | Chain length | SAMPLE/PRELOAD, EXTEST, INTEST: 44 bits (BSR 40 + 4) |
+| | SAMPLE inputs | GPIO pattern and inverse; walking 1 and walking 0 on every testbench-driven GPIO pin (56 patterns); uart_rx 0 and 1; testmode 0 |
+| | SAMPLE outputs | uart_tx/status/unused cells = core outputs; shifting/updating all 1s leaves the pins alone |
+| | EXTEST outputs | Walking 1 and walking 0 over uart_tx, status, unused0..3 (12 patterns) |
+| | EXTEST inputs | GPIO input pads are not driven by the BSR (no contention), and still capture the pins |
+| | TAP reset | Test-Logic-Reset (TMS) and TRST release EXTEST; afterwards bndscan is in BYPASS |
+| B (test_bscan running) | SAMPLE | Core drives `0xA5` on gpio[15:8]; the BSR captures it |
+| | EXTEST with the core | BSR drives gpio[15:8] over the core (20 patterns); the cells still capture the core output; core inputs unaffected |
+| | INTEST | Core reads gpio[23:16] from the BSR while the pins carry the inverse (13 patterns, seen in the echo on gpio[15:8]); the cells capture the core outputs |
+| | BYPASS | Core drives / reads the pins again |
+
+Not testable in this setup: driving `testmode` (it changes reset/clock behaviour of the
+core), INTEST on uart_rx (the program does not use the UART), telling gpio 4..7 cells apart
+from 0..3 (board loopback), EXTEST turning a GPIO into an output (the BSR has no
+output-enable cells), IDCODE (the bndscan TAP has none).
 
 Results are `[JTAG-TEST] PASS/FAIL` lines and `[JTAG-TEST] All N checks passed`. Failures
 are `$error`s; the final `SUCCESS`/`FAIL` line is the return value of the program only.

@@ -196,6 +196,8 @@ module tb_croc_chip #(
   localparam int unsigned ObiIrWidth = 2;
   localparam int unsigned IrObiOfs   = 5 + 1;              // obi_jtag IR bit 0 in the IR stream
 
+  logic ir_cap [];   // bits shifted out of the last IR scan (IR capture values)
+
   task automatic chain_set_ir(input logic [BndScanIrWidth-1:0] bs_instr,
                               input logic [ObiIrWidth-1:0]     obi_instr);
     logic wdata[];
@@ -207,7 +209,7 @@ module tb_croc_chip #(
     i_vip.jtag_dbg.jtag.write_tms(1);   // select IR scan
     i_vip.jtag_dbg.jtag.write_tms(0);   // capture IR
     i_vip.jtag_dbg.jtag.write_tms(0);   // shift IR
-    i_vip.jtag_dbg.jtag.write_bits(wdata, 1);
+    i_vip.jtag_dbg.jtag.readwrite_bits(ir_cap, wdata, 1);
     i_vip.jtag_dbg.jtag.write_tms(1);   // update IR
     i_vip.jtag_dbg.jtag.write_tms(0);   // run-test/idle
     // The DMI TAP IR was overwritten: make the VIP select it again on its next access
@@ -237,19 +239,28 @@ module tb_croc_chip #(
     for (int i = 0; i < BsrLen; i++) rvec[i] = rdata[DrAfterBs + i];
   endtask
 
-  // All TAPs in BYPASS: a pattern must come out after exactly BypassChain TCK cycles.
-  task automatic bs_check_bypass();
+  // Safe BSR contents while EXTEST/INTEST are active: UART idle, testmode 0, rest 0
+  function automatic logic [BsrLen-1:0] bs_idle_vec();
+    logic [BsrLen-1:0] v = '0;
+    v[BsUartRx] = 1'b1;
+    v[BsUartTx] = 1'b1;
+    return v;
+  endfunction
+
+  // Current DR chain length check: a 16-bit pattern must come out after exactly len TCK cycles.
+  // With bsr_fill, the BSR is left holding fill afterwards (for EXTEST/INTEST).
+  task automatic bs_check_chain(input string what, input int unsigned len,
+                                input bit bsr_fill = 0, input logic [BsrLen-1:0] fill = '0);
     logic wdata[], rdata[];
     logic [15:0] pat = 16'hB38F;
     bit ok = 1;
-    bs_set_ir(BsBypass);
-    wdata = new[16 + BypassChain];
+    wdata = new[16 + len];
     foreach (wdata[i]) wdata[i] = (i < 16) ? pat[i] : 1'b0;
-    i_vip.jtag_dbg.jtag.shift_dr();
-    i_vip.jtag_dbg.jtag.readwrite_bits(rdata, wdata, 1);
-    i_vip.jtag_dbg.jtag.update_dr(1'b0);
-    for (int i = 0; i < 16; i++) if (rdata[i + BypassChain] !== pat[i]) ok = 0;
-    bs_check($sformatf("BYPASS: chain of %0d bypass bits", BypassChain), ok);
+    // After 16 + len shifts, chain position p holds wdata[16 + p]; the BSR starts at DrAfterBs
+    if (bsr_fill) for (int c = 0; c < BsrLen; c++) wdata[16 + DrAfterBs + c] = fill[c];
+    chain_scan_dr(wdata, rdata);
+    for (int i = 0; i < 16; i++) if (rdata[i + len] !== pat[i]) ok = 0;
+    bs_check($sformatf("%s: DR chain of %0d bits", what, len), ok);
   endtask
 
   // Wait until gpio_io[lsb +: 8] == val, or time out.
@@ -262,58 +273,185 @@ module tb_croc_chip #(
     disable fork;
   endtask
 
+  // Output pads seen by the testbench, in BSR cell order [2..7]: uart_tx, status, unused0..3
+  function automatic logic [5:0] bs_out_pins();
+    return {unused, status, uart_tx};
+  endfunction
+
+  localparam int unsigned BsOutCells = 6;          // cells 2..7
+  localparam int unsigned BsTapReset = 2 + 2 + 32; // after a TAP reset the DMI TAP selects IDCODE
+
   // Part A: JTAG only, core still asleep in the bootrom (all GPIOs are inputs)
   task automatic bs_part_a();
     logic [BsrLen-1:0] vec, cap;
+    logic [GpioCount-1:0] pat;
+    logic [5:0] pins_before;
+    int unsigned errs, n;
+    bit ok;
 
-    $display("@%t | [BSCAN] Part A: BYPASS, SAMPLE, EXTEST", $time);
-    bs_check_bypass();
+    $display("@%t | [BSCAN] Part A: instructions, SAMPLE, EXTEST, TAP reset", $time);
 
-    // SAMPLE: the BSR captures the pins driven by the testbench (pattern and its inverse)
+    // --- Instructions ---------------------------------------------------------------
+    bs_set_ir(BsBypass);
+    bs_check_chain("BYPASS (bndscan 2 + obi_jtag 2 + DMI 1)", BypassChain);
+    ok = 1;
+    for (int i = 0; i < BndScanIrWidth; i++) if (ir_cap[IrBsOfs + i] !== 1'b0) ok = 0;
+    bs_check("IR capture: bndscan IR shifts out 0000 (RTL capture value)", ok);
+
+    errs = 0;
+    for (int op = 4; op < 2**BndScanIrWidth; op++) begin
+      logic wdata[], rdata[];
+      logic [15:0] p = 16'hB38F;
+      chain_set_ir(op, '0);
+      wdata = new[16 + BypassChain];
+      foreach (wdata[i]) wdata[i] = (i < 16) ? p[i] : 1'b0;
+      chain_scan_dr(wdata, rdata);
+      for (int i = 0; i < 16; i++) if (rdata[i + BypassChain] !== p[i]) begin errs++; break; end
+    end
+    bs_check($sformatf("Unused opcodes 4..%0d select BYPASS (%0d failing)",
+                       2**BndScanIrWidth - 1, errs), errs == 0);
+
     bs_set_ir(BsSamplePreload);
+    bs_check_chain("SAMPLE/PRELOAD (BSR 40 + 4 after)", BsrLen + DrAfterBs, 1, bs_idle_vec());
+    bs_set_ir(BsExtest);
+    bs_check_chain("EXTEST (BSR 40 + 4 after)", BsrLen + DrAfterBs, 1, bs_idle_vec());
+    bs_set_ir(BsIntest);
+    bs_check_chain("INTEST (BSR 40 + 4 after)", BsrLen + DrAfterBs, 1, bs_idle_vec());
+
+    // --- SAMPLE: inputs --------------------------------------------------------------
+    bs_set_ir(BsSamplePreload);
+    gpio_drv_en = ~32'h0000_00F0;                 // pins 7:4 follow 3:0 (loopback)
     for (int p = 0; p < 2; p++) begin
-      gpio_drv_en = ~32'h0000_00F0;               // pins 7:4 follow 3:0 (loopback)
-      gpio_drv    = (p == 0) ? 32'hC35A_9609 : ~32'hC35A_9609;
+      gpio_drv = (p == 0) ? 32'hC35A_9609 : ~32'hC35A_9609;
       #(100ns);
       bs_scan_dr('0, cap);
       bs_check($sformatf("SAMPLE: gpio cells = pins (0x%08h)", gpio_io),
                cap[BsGpio +: GpioCount] === gpio_io);
     end
-    bs_check("SAMPLE: uart_rx cell = pin (1)", cap[BsUartRx]   === uart_rx);
-    bs_check("SAMPLE: testmode cell = 0",      cap[BsTestmode] === 1'b0);
-    bs_check("SAMPLE: status/unused cells = pins",
-             cap[BsStatus] === status && cap[BsUnused +: 4] === unused);
+
+    errs = 0; n = 0;
+    for (int k = 0; k < GpioCount; k++) begin
+      if (k >= 4 && k <= 7) continue;             // driven by the loopback
+      for (int inv = 0; inv < 2; inv++) begin
+        pat      = 32'h1 << k;
+        gpio_drv = inv ? ~pat : pat;
+        #(50ns);
+        bs_scan_dr('0, cap);
+        n++;
+        if (cap[BsGpio +: GpioCount] !== gpio_io) begin
+          errs++;
+          $display("            gpio pins 0x%08h, cells 0x%08h", gpio_io, cap[BsGpio +: GpioCount]);
+        end
+      end
+    end
+    bs_check($sformatf("SAMPLE: walking 1/0 on gpio pins, %0d patterns (%0d failing)", n, errs),
+             errs == 0);
     gpio_drv_en = '0;
 
-    // EXTEST: preload, then the BSR drives the output pads (uart_tx kept at idle 1)
-    for (int p = 0; p < 2; p++) begin
-      vec = '0;
-      vec[BsUartTx]      = 1'b1;
-      vec[BsStatus]      = (p == 0);
-      vec[BsUnused +: 4] = (p == 0) ? 4'b1010 : 4'b0101;
-      if (p == 0) begin
-        bs_set_ir(BsSamplePreload);
-        bs_scan_dr(vec, cap);
-        bs_set_ir(BsExtest);
-      end else begin
-        bs_scan_dr(vec, cap);
-      end
-      #(100ns);
-      bs_check($sformatf("EXTEST: status=%0b unused=%4b driven from the BSR",
-                         vec[BsStatus], vec[BsUnused +: 4]),
-               status === vec[BsStatus] && unused === vec[BsUnused +: 4] && uart_tx === 1'b1);
-    end
-    bs_set_ir(BsBypass);
+    force uart_rx = 1'b0;                         // the VIP holds it at idle 1 otherwise
+    #(50ns);
+    bs_scan_dr('0, cap);
+    bs_check("SAMPLE: uart_rx cell = pin (0)", cap[BsUartRx] === 1'b0);
+    release uart_rx;
+    #(50ns);
+    bs_scan_dr('0, cap);
+    bs_check("SAMPLE: uart_rx cell = pin (1)", cap[BsUartRx] === 1'b1);
+    bs_check("SAMPLE: testmode cell = pin (0)", cap[BsTestmode] === 1'b0);
+    bs_check("SAMPLE: uart_tx/status/unused cells = core outputs on the pins",
+             cap[BsUartTx +: BsOutCells] === bs_out_pins());
+
+    // SAMPLE must not disturb anything, whatever is shifted in and updated
+    pins_before = bs_out_pins();
+    bs_scan_dr('1, cap);
     #(100ns);
+    bs_check("SAMPLE: shifting/updating all 1s leaves the output pins alone",
+             bs_out_pins() === pins_before);
+
+    // --- EXTEST: output pads -----------------------------------------------------------
+    // Preload with the idle state, then walk a 1 and a 0 over the 6 output cells.
+    // uart_tx pulses look like a start bit to the VIP UART monitor; its buffer is
+    // cleared afterwards.
+    vec = '0;
+    vec[BsUartTx] = 1'b1;
+    bs_set_ir(BsSamplePreload);
+    bs_scan_dr(vec, cap);
+    bs_set_ir(BsExtest);
+    errs = 0; n = 0;
+    for (int inv = 0; inv < 2; inv++) begin
+      for (int c = 0; c < BsOutCells; c++) begin
+        logic [5:0] out = inv ? ~(6'b1 << c) : (6'b1 << c);
+        vec = '0;
+        vec[BsUartTx +: BsOutCells] = out;
+        bs_scan_dr(vec, cap);
+        #(50ns);
+        n++;
+        if (bs_out_pins() !== out) begin
+          errs++;
+          $display("            BSR {unused,status,uart_tx}=%06b, pins %06b", out, bs_out_pins());
+        end
+      end
+    end
+    bs_check($sformatf("EXTEST: walking 1/0 on uart_tx/status/unused0..3, %0d patterns (%0d failing)",
+                       n, errs), errs == 0);
+
+    // --- EXTEST: input pads are not driven, and still capture the pins -----------------
+    for (int v = 0; v < 2; v++) begin
+      gpio_drv_en = ~32'h0000_00F0;
+      gpio_drv    = v ? '1 : '0;
+      vec = '0;
+      vec[BsUartTx]              = 1'b1;
+      vec[BsGpio +: GpioCount]   = v ? '0 : '1;   // opposite of the pins
+      bs_scan_dr(vec, cap);                       // update: BSR holds the opposite value
+      #(50ns);
+      bs_scan_dr(vec, cap);                       // capture: cells see the pins
+      bs_check($sformatf("EXTEST: gpio input pads not driven by the BSR (pins stay 0x%08h)", gpio_io),
+               gpio_io === (v ? '1 : '0));
+      bs_check("EXTEST: gpio input cells capture the pins", cap[BsGpio +: GpioCount] === gpio_io);
+    end
+    gpio_drv_en = '0;
+
+    // --- TAP reset releases EXTEST -------------------------------------------------------
+    // TMS reset (5x TMS=1 -> Test-Logic-Reset)
+    vec = '0;
+    vec[BsUartTx] = 1'b1;
+    vec[BsStatus] = 1'b1;
+    bs_scan_dr(vec, cap);
+    #(50ns);
+    ok = (status === 1'b1);
+    i_vip.jtag_dbg.jtag.soft_reset();
+    #(50ns);
+    bs_check("Test-Logic-Reset (TMS): EXTEST released, status back to the core (0)",
+             ok && status === 1'b0);
+    bs_check_chain("After Test-Logic-Reset: bndscan BYPASS + DMI IDCODE", BsTapReset);
+
+    // TRST
+    bs_set_ir(BsSamplePreload);
+    bs_scan_dr(vec, cap);
+    bs_set_ir(BsExtest);
+    #(50ns);
+    ok = (status === 1'b1);
+    i_vip.jtag_dbg.reset_master();               // TRST pulse, then Run-Test/Idle
+    i_vip.jtag_dbg.jtag.ir_select = '1;
+    #(50ns);
+    bs_check("TRST: EXTEST released, status back to the core (0)", ok && status === 1'b0);
+    bs_check_chain("After TRST: bndscan BYPASS + DMI IDCODE", BsTapReset);
+
+    bs_set_ir(BsBypass);
     bs_check("BYPASS: status back to the core (0)", status === 1'b0);
+
+    // Let the VIP UART monitor finish the byte started by the uart_tx pulses, then drop it
+    #(200us);
+    i_vip.uart_read_buf.delete();
   endtask
 
   // Part B: with test_bscan running on the core
   task automatic bs_part_b();
     logic [BsrLen-1:0] vec, cap;
+    logic [7:0] pats [$];
+    int unsigned errs, errs_cap, n;
     bit ok;
 
-    $display("@%t | [BSCAN] Part B: SAMPLE of core outputs, INTEST", $time);
+    $display("@%t | [BSCAN] Part B: SAMPLE of core outputs, EXTEST/INTEST with the core", $time);
     bs_wait_gpio(8, BscanReady, ok);
     bs_check("core drives READY on gpio[15:8]", ok);
 
@@ -322,27 +460,78 @@ module tb_croc_chip #(
     bs_check($sformatf("SAMPLE: gpio[15:8] cells = core outputs (0x%02h)", cap[BsGpio + 8 +: 8]),
              cap[BsGpio + 8 +: 8] === BscanReady);
 
-    // GO through the pins, core starts echoing gpio[23:16] (pins: 0x00) to gpio[15:8]
-    gpio_drv[31:16] = {BscanGo, 8'h00};
+    // GO through the pins, core echoes gpio[23:16] (pins: 0x5C) to gpio[15:8]
+    gpio_drv[31:16] = {BscanGo, 8'h5C};
     gpio_drv_en     = 32'hFFFF_0000;
-    bs_wait_gpio(8, 8'h00, ok);
-    bs_check("core echoes gpio[23:16] pins (0x00)", ok);
+    bs_wait_gpio(8, 8'h5C, ok);
+    bs_check("core echoes gpio[23:16] pins (0x5C)", ok);
 
-    // INTEST: the core inputs come from the BSR (gpio[23:16] = 0x3C), not from the pins
+    // --- EXTEST on the GPIO outputs: the BSR overrides the core on gpio[15:8] -----------
+    pats = '{8'h96, 8'h69, 8'h00, 8'hFF};
+    for (int k = 0; k < 8; k++) begin
+      pats.push_back(8'h1 << k);
+      pats.push_back(~(8'h1 << k));
+    end
+    vec = '0;
+    vec[BsUartTx]         = 1'b1;
+    vec[BsGpio + 8 +: 8]  = pats[0];
+    bs_set_ir(BsSamplePreload);
+    bs_scan_dr(vec, cap);
+    bs_set_ir(BsExtest);
+    errs = 0; errs_cap = 0; n = 0;
+    foreach (pats[i]) begin
+      vec[BsGpio + 8 +: 8] = pats[i];
+      bs_scan_dr(vec, cap);                       // capture: core output, update: new pattern
+      #(50ns);
+      n++;
+      if (gpio_io[15:8] !== pats[i]) begin
+        errs++;
+        $display("            BSR 0x%02h, pins gpio[15:8] 0x%02h", pats[i], gpio_io[15:8]);
+      end
+      if (cap[BsGpio + 8 +: 8] !== 8'h5C) errs_cap++;
+    end
+    bs_check($sformatf("EXTEST: BSR drives gpio[15:8] over the core, %0d patterns (%0d failing)",
+                       n, errs), errs == 0);
+    bs_check($sformatf("EXTEST: gpio[15:8] cells capture the core output 0x5C, core inputs unaffected (%0d failing)",
+                       errs_cap), errs_cap == 0);
+    bs_check("EXTEST: gpio[23:16] input pins not driven (0x5C)", gpio_io[23:16] === 8'h5C);
+    bs_set_ir(BsBypass);
+    bs_wait_gpio(8, 8'h5C, ok);
+    bs_check("BYPASS: core drives gpio[15:8] again (0x5C)", ok);
+
+    // --- INTEST: core inputs come from the BSR, the pins carry the inverse --------------
+    pats = '{8'h3C, 8'h00, 8'hFF, 8'h55, 8'hAA};
+    for (int k = 0; k < 8; k++) pats.push_back(8'h1 << k);
     vec = '0;
     vec[BsUartRx]          = 1'b1;               // UART idle
     vec[BsTestmode]        = 1'b0;
-    vec[BsGpio + 16 +: 16] = {BscanGo, 8'h3C};
+    vec[BsGpio + 16 +: 16] = {BscanGo, pats[0]};
+    gpio_drv[23:16] = ~pats[0];
     bs_set_ir(BsSamplePreload);
     bs_scan_dr(vec, cap);
     bs_set_ir(BsIntest);
-    bs_wait_gpio(8, 8'h3C, ok);
-    bs_check("INTEST: core reads gpio[23:16] from the BSR (echo 0x3C on the pins)", ok);
-    bs_scan_dr(vec, cap);
-    bs_check($sformatf("INTEST: gpio[15:8] cells capture core outputs (0x%02h)", cap[BsGpio + 8 +: 8]),
-             cap[BsGpio + 8 +: 8] === 8'h3C);
+    errs = 0; errs_cap = 0; n = 0;
+    foreach (pats[i]) begin
+      gpio_drv[23:16]        = ~pats[i];          // pins: the inverse, must be ignored
+      vec[BsGpio + 16 +: 8]  = pats[i];
+      bs_scan_dr(vec, cap);
+      bs_wait_gpio(8, pats[i], ok);
+      n++;
+      if (!ok) begin
+        errs++;
+        $display("            BSR gpio[23:16] 0x%02h, pins 0x%02h, echo 0x%02h",
+                 pats[i], gpio_io[23:16], gpio_io[15:8]);
+      end
+      bs_scan_dr(vec, cap);                       // capture the core outputs
+      if (cap[BsGpio + 8 +: 8] !== pats[i]) errs_cap++;
+    end
+    bs_check($sformatf("INTEST: core reads gpio[23:16] from the BSR, not the pins, %0d patterns (%0d failing)",
+                       n, errs), errs == 0);
+    bs_check($sformatf("INTEST: gpio[15:8] cells capture the core outputs (%0d failing)", errs_cap),
+             errs_cap == 0);
 
     // Back to the pins, then let the program finish
+    gpio_drv[23:16] = 8'h00;
     bs_set_ir(BsBypass);
     bs_wait_gpio(8, 8'h00, ok);
     bs_check("BYPASS: core reads the pins again (echo 0x00)", ok);
