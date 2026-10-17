@@ -29,6 +29,7 @@ Expected output (no faults):
 | `--run BINARY` | Runs `BINARY` (a `.hex`) in batch mode, writes `reports/run_vsim.log`, then runs the port check |
 | `--run-gui BINARY` | Same, in the QuestaSim GUI (with `+acc` for signal visibility) |
 | `--tb NAME` | Testbench for `--run`/`--run-gui`: `tb_croc_soc` (default) or `tb_croc_chip` |
+| `--plusarg +ARG` | Extra simulator plusarg for `--run`/`--run-gui`, repeatable (`+bscan_test`, `+obi_jtag_test`) |
 | `--mbist-fault` | With `--build`: SRAM uses the fault-injection model (see below) |
 | `--techfunctional` | Only affects `--flist` (Bender targets). `--build` always compiles the tech models |
 | `--flist` | Regenerates `compile_rtl.tcl` with Bender. **Overwrites the hand edits** in that file (SEM_PROJ files, `MBIST_FAULT` switch, `tb_croc_chip`) |
@@ -107,6 +108,61 @@ endfunction
   and `0x1000_0CB0`.
 
 To go back to the normal SRAM: `./run_vsim.sh --build` (without `--mbist-fault`).
+
+## Boundary-scan test
+
+```bash
+./run_vsim.sh --build --tb tb_croc_chip --plusarg +bscan_test --run ../sw/bin/test/test_bscan.hex
+```
+
+Only on `tb_croc_chip` (the boundary-scan TAP is in `croc_chip`). The testbench drives
+the boundary-scan TAP over JTAG; `sw/test/test_bscan.c` is the core side.
+
+| Part | Check |
+|---|---|
+| A (before program load) | BYPASS: chain of 5 bypass bits (bndscan 2, obi_jtag 2, DMI 1) |
+| | SAMPLE: GPIO, uart_rx, testmode, status, unused cells capture the pins (pattern and inverse) |
+| | EXTEST: BSR drives status and unused0..3 pins; back to the core in BYPASS |
+| B (test_bscan running) | SAMPLE: core GPIO outputs (`0xA5` on gpio[15:8]) captured in the BSR |
+| | INTEST: core reads gpio[23:16] from the BSR (`0x3C`) instead of the pins (`0x00`), seen in its echo on gpio[15:8] |
+| | INTEST: output cells capture the core outputs; BYPASS returns the core to the pins |
+
+Results are `[JTAG-TEST] PASS/FAIL` lines and `[JTAG-TEST] All N checks passed`. Failures
+are `$error`s; the final `SUCCESS`/`FAIL` line is the return value of the program only.
+
+BSR cells: `[0]` uart_rx, `[1]` testmode, `[2]` uart_tx, `[3]` status, `[4..7]` unused0..3,
+`[8..39]` gpio0..31. Instructions: BYPASS 0, SAMPLE/PRELOAD 1, EXTEST 2, INTEST 3.
+`--plusarg` passes any `+ARG` to the simulator and can be repeated.
+
+## OBI JTAG isolation test
+
+```bash
+./run_vsim.sh --build --tb tb_croc_chip --plusarg +obi_jtag_test --run ../sw/bin/test/test_mbist.hex
+# both JTAG tests together:
+./run_vsim.sh --tb tb_croc_chip --plusarg +bscan_test --plusarg +obi_jtag_test --run ../sw/bin/test/test_bscan.hex
+```
+
+Runs over JTAG right after `jtag_init`, while the core sleeps in the bootrom; any program
+works. obi_jtag TAP instruction `XcnctIsolation` (IR 1) puts the OBI cuts around the main
+crossbar on TCK and in one scan chain, and takes the crossbar address map from JTAG.
+
+DR chain (TDI -> TDO): isolation register (288 bits: 4 address rules, `en_default_idx`,
+`default_idx`) -> TDO stage -> cuts at managers 0..3 (A 71 + R 35 bits) -> cuts at
+subordinates 0..4 (A 73 + R 37 bits). A cut cell holds channel data only (no valid):
+Capture loads the cut input, Update drives the cut output.
+
+| Check | How |
+|---|---|
+| Scan chain | A pattern needs exactly 1266 TCK cycles from TDI to TDO (incl. bndscan and DMI bypass) |
+| Routing | A write injected into the cut of manager 3 (core instr) is captured only by the subordinate cut it decodes to: periph, user, SRAM bank 0/1, error (unmapped) |
+| JTAG address map | Same with the two SRAM banks swapped in the scanned address map |
+| JTAG default index | Unmapped address goes to periph when `default_idx` is set to periph |
+| Back to functional | After isolation, the `0x1234_5678` write/read over the crossbar and the program run |
+
+Why manager 3: no manager requests during the test, so every subordinate arbiter passes the
+A channel of its highest-index input (manager 3). Its demux sends the request to the
+decoded subordinate and `'0` to the others. The subordinate-side `aid` is
+`{manager index, aid}`.
 
 ## Port connection check
 

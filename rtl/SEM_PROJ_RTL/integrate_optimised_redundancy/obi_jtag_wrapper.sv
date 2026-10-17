@@ -225,5 +225,6 @@ end
 assign tdo_o = tdo_q;
 assign tdo_en_o = tdo_en_q;
 assign xcnct_isol_en_o = xcnct_isol_select;
+assign xcnct_isol_o    = xcnct_isol_q;   // isolation address map / default index to the multicut
 
 endmodule

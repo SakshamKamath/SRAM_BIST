@@ -64,6 +64,9 @@ Options:
                           tb_croc_soc  (default) croc_soc directly
                           tb_croc_chip croc_chip with IO pads and boundary-scan TAP
                         Both are compiled by --build, so no rebuild is needed to switch.
+    --plusarg +ARG      Extra simulator plusarg for --run / --run-gui (repeatable), e.g.
+                        --plusarg +bscan_test    (boundary-scan test, tb_croc_chip + test_bscan.hex)
+                        --plusarg +obi_jtag_test (OBI crossbar JTAG isolation test, tb_croc_chip)
     --flist             Regenerate compile script reading sources (compile_rtl.tcl, compile_netlist.tcl)
     --build             Compile Croc RTL in VSIM
     --build-netlist     Compile Croc post-synthesis netlist in VSIM
@@ -269,6 +272,7 @@ check_port_connections() {
 run_vsim() {
     run_cmd "${VSIM} \
         +binary=$1 \
+        ${PLUSARGS} \
         -c \
         ${TB} \
         -t 1ns \
@@ -284,6 +288,7 @@ run_vsim() {
 run_vsim_gui() {
     run_cmd "${VSIM} \
         +binary=$1 \
+        ${PLUSARGS} \
         -gui \
         ${TB} \
         -t 1ns \
@@ -313,10 +318,18 @@ for arg in "$@"; do
     [[ "$arg" == --mbist-fault ]] && MBIST_FAULT=1
 done
 
-# --tb takes a value, so scan for it by index
+# --tb and --plusarg take a value, so scan for them by index
+PLUSARGS=""
 args=("$@")
 for ((i = 0; i < ${#args[@]}; i++)); do
     [[ "${args[i]}" == --tb ]] && TB="${args[i+1]:-}"
+    if [[ "${args[i]}" == --plusarg ]]; then
+        if [[ "${args[i+1]:-}" != +* ]]; then
+            echo "[ERROR] --plusarg needs a value starting with '+' (e.g. --plusarg +bscan_test)" >&2
+            exit 1
+        fi
+        PLUSARGS="${PLUSARGS} ${args[i+1]}"
+    fi
 done
 if [[ " ${VALID_TBS} " != *" ${TB} "* ]]; then
     echo "[ERROR] Unknown testbench '${TB}' (valid: ${VALID_TBS})" >&2
@@ -341,7 +354,7 @@ while [[ $# -gt 0 ]]; do
         --mbist-fault)
             shift
             ;;
-        --tb)
+        --tb|--plusarg)
             shift 2
             ;;
         # script-specific commands
