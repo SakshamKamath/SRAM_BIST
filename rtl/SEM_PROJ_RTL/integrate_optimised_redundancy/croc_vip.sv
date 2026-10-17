@@ -8,7 +8,11 @@
 // - Enrico Zelioli <ezelioli@iis.ee.ethz.ch>
 
 module croc_vip #(
-  parameter int unsigned GpioCount = 32
+  parameter int unsigned GpioCount        = 32,
+  // TAPs in the JTAG chain in front of croc_soc (e.g. the boundary-scan TAP in croc_chip)
+  // Count each TAP as IR width + 1 and 2 DR bits: these TAPs register TDO (one extra flop).
+  parameter int unsigned ExtraIrLenBefore  = 0,  // sum of their IR lengths (+1 each)
+  parameter int unsigned ExtraDrBitsBefore = 0   // their bypass bits (2 each)
 ) (
   output logic                 rst_no,
   output logic                 sys_clk_o,
@@ -66,13 +70,13 @@ module croc_vip #(
 
   localparam ObiJtagIrWidth    = 3;
   localparam MemJtagIrWidth    = 0;
-  localparam IrWidthBeforeDMI  = ObiJtagIrWidth + MemJtagIrWidth;
+  localparam IrWidthBeforeDMI  = ObiJtagIrWidth + MemJtagIrWidth + ExtraIrLenBefore;
 
   riscv_dbg_simple #(
     .IrLength     ( 5                 ),
     .IrLenBefore  ( IrWidthBeforeDMI  ), // sum of IR lengths of TAPs before croc in the chain
     .IrLenAfter   ( 0              ), // sum of IR lengths of TAPs after croc in the chain
-    .DrBitsBefore ( 2              ), // count of TAPs before DMI (1 bypass bit each)
+    .DrBitsBefore ( 2 + ExtraDrBitsBefore ), // count of TAPs before DMI (1 bypass bit each)
     .DrBitsAfter  ( 0              ), // count of TAPs after DMI (1 bypass bit each)
     .TA       ( TApplJtag ),
     .TT       ( TTestJtag )

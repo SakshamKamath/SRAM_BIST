@@ -144,9 +144,11 @@ module croc_chip import croc_pkg::*; #() (
     end
 
     // -- GPIOs (bidirectional) --
+    // pad_signal_t is a packed union (p2c and c2p are the same bit), so select the
+    // direction at runtime from the output enable. (A generate-if on pad_cfg cannot work:
+    // it depends on core_gpio_out_en_o.)
     for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_pack
-      if(pad_cfg[GpioOfs+i] == PAD_IN) assign pad_to_bndscan[GpioOfs+i].p2c    = soc_gpio_i[i];
-      else assign pad_to_bndscan[GpioOfs+i].c2p    = core_gpio_o[i];
+      assign pad_to_bndscan[GpioOfs+i].c2p = core_gpio_out_en_o[i] ? core_gpio_o[i] : soc_gpio_i[i];
     end
 
 
@@ -162,20 +164,10 @@ module croc_chip import croc_pkg::*; #() (
     end
 
     logic [GpioCount-1:0] core_gpio_i;
-    for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_unpack1
+    // Both directions pass through; the pad's c2p_en (core_gpio_out_en_o) decides which is used.
+    for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_unpack
       assign core_gpio_i[i]       = pad_from_bndscan[GpioOfs+i].p2c;
       assign soc_gpio_o[i]        = pad_from_bndscan[GpioOfs+i].c2p;
-    end
-    for (genvar i = 0; i < GpioCount; i++) begin : gen_gpio_unpack2
-      if (pad_cfg[GpioOfs+i] == PAD_IN) begin : gen_in
-        // Pad is configured as an Input: Route p2c into the Core input signal
-        assign core_gpio_i[i] = pad_from_bndscan[GpioOfs+i].p2c;
-        assign soc_gpio_o[i]  = 1'b0; // Drive unused output signal to a safe default
-      end else begin : gen_out
-        // Pad is configured as an Output: Route c2p out to the SOC top-level pad
-        assign soc_gpio_o[i]  = pad_from_bndscan[GpioOfs+i].c2p;
-        assign core_gpio_i[i] = 1'b0; // Drive unused core input signal to a safe default
-      end 
     end
 
 
@@ -194,8 +186,8 @@ module croc_chip import croc_pkg::*; #() (
     .testmode_i ( soc_testmode_i    ),
 
     // Standard Dedicated JTAG TAP connection directly from chip pins
-    .trst_ni    ( soc_jtag_tck_i    ),
-    .tclk_i     ( soc_jtag_trst_ni  ),
+    .trst_ni    ( soc_jtag_trst_ni  ),
+    .tclk_i     ( soc_jtag_tck_i    ),
     .tdi_i      ( soc_jtag_tdi_i    ),
     .tms_i      ( soc_jtag_tms_i    ),
     .tdo_o      ( daisy_scan_chain  ),

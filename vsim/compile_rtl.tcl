@@ -519,4 +519,5 @@ if {[catch { vlog -incr -sv \
     "${ROOT}/rtl/test/tb_croc_pkg.sv" \
     "${ROOT}/rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/croc_vip.sv" \
     "${ROOT}/rtl/test/tb_croc_soc.sv" \
+    "${ROOT}/rtl/test/tb_croc_chip.sv" \
 }]} {return 1}

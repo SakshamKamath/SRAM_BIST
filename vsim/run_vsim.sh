@@ -31,6 +31,10 @@ TECHFUNCTIONAL=${TECHFUNCTIONAL:-0}
 # 1 = SRAM banks use the fault-injection model (see --mbist-fault)
 MBIST_FAULT=${MBIST_FAULT:-0}
 
+# Testbench top for --run / --run-gui (see --tb)
+TB=${TB:-tb_croc_soc}
+VALID_TBS="tb_croc_soc tb_croc_chip"
+
 mkdir -p reports
 
 ################
@@ -48,13 +52,18 @@ Options:
     --help, -h          Show this help message
     --dry-run, -n       Only print commands instead of executing
     --verbose, -v       Print commands while executing
-    --techfunctional    Use IHP13 tech cells and SRAM macro models in RTL sim
-                        (same as TECHFUNCTIONAL=1). Default: generic tech cells.
-                        Use the same setting for --flist and --build.
+    --techfunctional    Bender targets for IHP13 tech cells and SRAM macros when regenerating
+                        the file list with --flist (same as TECHFUNCTIONAL=1).
+                        --build always compiles the tech cell, SRAM macro and IO pad models,
+                        since compile_rtl.tcl needs them either way.
     --mbist-fault       Build with tc_sram_impl_fault.sv + the SRAM fault model instead of
                         tc_sram_impl_mod.sv (same as MBIST_FAULT=1). Faults are set in
                         rtl/SEM_PROJ_RTL/integrate_optimised_redundancy/mbist_fault_cfg_pkg.sv.
                         Only affects --build; rebuild without it to go back.
+    --tb NAME           Testbench for --run / --run-gui (same as TB=NAME):
+                          tb_croc_soc  (default) croc_soc directly
+                          tb_croc_chip croc_chip with IO pads and boundary-scan TAP
+                        Both are compiled by --build, so no rebuild is needed to switch.
     --flist             Regenerate compile script reading sources (compile_rtl.tcl, compile_netlist.tcl)
     --build             Compile Croc RTL in VSIM
     --build-netlist     Compile Croc post-synthesis netlist in VSIM
@@ -70,6 +79,9 @@ Example:
 
     # MBIST test with injected SRAM faults
     ./run_vsim.sh --techfunctional --mbist-fault --build --run ../sw/bin/test/test_mbist.hex
+
+    # Same binary on the chip-level testbench
+    ./run_vsim.sh --tb tb_croc_chip --run ../sw/bin/test/test_mbist.hex
 EOF
     exit 0
 }
@@ -94,12 +106,11 @@ rtl_extra_targets() {
 
 # What QuestaSim sources at compile time. Tech models must come first.
 rtl_compile_do() {
-    # compile_rtl.tcl reads the Tcl variables TECHFUNCTIONAL and MBIST_FAULT to pick files and defines
-    if [ "$TECHFUNCTIONAL" = 1 ]; then
-        echo "set TECHFUNCTIONAL 1; set MBIST_FAULT ${MBIST_FAULT}; source compile_tech_func.tcl; source compile_rtl.tcl; exit"
-    else
-        echo "set TECHFUNCTIONAL 0; set MBIST_FAULT ${MBIST_FAULT}; source compile_rtl.tcl; exit"
-    fi
+    # compile_rtl.tcl reads the Tcl variable MBIST_FAULT to pick the SRAM files. It always
+    # instantiates IHP13 cells, SRAM macros and IO pads (tc_clk, tc_sram_impl_mod, croc_chip),
+    # so their models (compile_tech_func.tcl) are compiled on every build, with or
+    # without --techfunctional.
+    echo "set TECHFUNCTIONAL ${TECHFUNCTIONAL}; set MBIST_FAULT ${MBIST_FAULT}; source compile_tech_func.tcl; source compile_rtl.tcl; exit"
 }
 
 
@@ -223,16 +234,50 @@ compile_netlist() {
 }
 
 
+# Classify vopt "missing port connection" warnings (vopt-2718) in a vsim log.
+# The IO pad cells in croc_chip leave their power pins (iovdd/iovss/vdd/vss) unconnected on
+# purpose (as upstream Croc; the pad ring connects them in layout), so those are expected.
+# Any other missing port connection is listed as a real issue. The warnings themselves are
+# not suppressed. vopt only prints them when it re-optimizes the design.
+POWER_PINS="iovdd|iovss|vdd|vss"
+check_port_connections() {
+    local log=$1
+    if [ "$DRYRUN" = 1 ]; then
+        echo "check_port_connections ${log}"
+        return 0
+    fi
+    local all power other
+    all=$(grep "vopt-2718.*Missing connection for port" "${log}" || true)
+    if [ -z "${all}" ]; then
+        echo "[INFO][VSIM] Port check: no missing port connections reported (or design not re-optimized)"
+        return 0
+    fi
+    power=$(echo "${all}" | grep -E -c "port '(${POWER_PINS})'" || true)
+    other=$(echo "${all}" | grep -E -v "port '(${POWER_PINS})'" || true)
+    echo "#######################################################"
+    echo "[INFO][VSIM] Port check: ${power} missing power-pin connection(s) (${POWER_PINS//|/, }): expected, ignored"
+    if [ -n "${other}" ]; then
+        echo "[WARNING][VSIM] Port check: $(echo "${other}" | wc -l) missing NON-power port connection(s):" >&2
+        echo "${other}" | sed 's/^# \*\* Warning: /    /' >&2
+    else
+        echo "[INFO][VSIM] Port check: no missing non-power port connections"
+    fi
+    echo "#######################################################"
+}
+
+
 run_vsim() {
     run_cmd "${VSIM} \
         +binary=$1 \
         -c \
-        tb_croc_soc \
+        ${TB} \
         -t 1ns \
         -suppress vsim-3009 \
         -suppress vsim-8683 \
         -suppress vsim-8386 \
-        -do \"run -a; quit\""
+        -do \"run -a; quit\" \
+        2>&1 | tee reports/run_vsim.log"
+    check_port_connections reports/run_vsim.log
 }
 
 
@@ -240,7 +285,7 @@ run_vsim_gui() {
     run_cmd "${VSIM} \
         +binary=$1 \
         -gui \
-        tb_croc_soc \
+        ${TB} \
         -t 1ns \
         -voptargs=+acc \
         -suppress vsim-3009 \
@@ -268,6 +313,16 @@ for arg in "$@"; do
     [[ "$arg" == --mbist-fault ]] && MBIST_FAULT=1
 done
 
+# --tb takes a value, so scan for it by index
+args=("$@")
+for ((i = 0; i < ${#args[@]}; i++)); do
+    [[ "${args[i]}" == --tb ]] && TB="${args[i+1]:-}"
+done
+if [[ " ${VALID_TBS} " != *" ${TB} "* ]]; then
+    echo "[ERROR] Unknown testbench '${TB}' (valid: ${VALID_TBS})" >&2
+    exit 1
+fi
+
 # parse arguments
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -285,6 +340,9 @@ while [[ $# -gt 0 ]]; do
             ;;
         --mbist-fault)
             shift
+            ;;
+        --tb)
+            shift 2
             ;;
         # script-specific commands
         --flist)

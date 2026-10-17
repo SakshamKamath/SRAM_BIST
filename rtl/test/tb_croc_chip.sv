@@ -1,19 +1,26 @@
 // Copyright 2026 ETH Zurich and University of Bologna.
 // Solderpad Hardware License, Version 0.51, see LICENSE for details.
 // SPDX-License-Identifier: SHL-0.51
+//
+// Chip-level testbench: drives croc_chip through its IO pads instead of croc_soc directly.
+// Select it with `run_vsim.sh --tb tb_croc_chip`.
+//
+// JTAG chain on the chip: TDI -> boundary-scan TAP (IR 4) -> croc_soc TAPs -> TDO,
+// so the VIP is told about one extra TAP in front of croc_soc.
 
 `define TRACE_WAVE
 
 module tb_croc_chip #(
-  parameter int unsigned GpioCount = 9
+  parameter int unsigned GpioCount = 32
 );
 
   import tb_croc_pkg::*;
 
+  localparam int unsigned BndScanIrWidth = 4;   // croc_chip: bndscan_jtag_top IrWidth
+
   logic rst_n;
   logic sys_clk;
   logic ref_clk;
-  logic pll_ref_clk;
 
   logic jtag_tck;
   logic jtag_trst_n;
@@ -23,12 +30,9 @@ module tb_croc_chip #(
 
   logic uart_rx;
   logic uart_tx;
-  logic sd_clk;
-  logic pll_cktst;
 
   tri1 [GpioCount-1:0] gpio_io;
-  tri1 [3:0] sd_dat_io;
-  tri1 sd_cmd_io;
+  wire [3:0]           unused;
 
   wire status;
 
@@ -36,10 +40,6 @@ module tb_croc_chip #(
   tri VSS;
   tri VDDIO;
   tri VSSIO;
-  tri DVDD_DRV;
-  tri DVSS_DRV;
-  tri PLL_AVDD;
-  tri PLL_AVSS;
 
   string binary_path;
 
@@ -47,32 +47,24 @@ module tb_croc_chip #(
   assign VDDIO = 1'b1;
   assign VSS   = 1'b0;
   assign VSSIO = 1'b0;
-  assign DVDD_DRV = 1'b1;
-  assign DVSS_DRV = 1'b0;
-  assign PLL_AVDD = 1'b1;
-  assign PLL_AVSS = 1'b0;
-
-  // Keep the optional PLL disabled and on the primary clock; its dedicated
-  // reference pad still receives a separate 20 MHz clock.
-  initial pll_ref_clk = 1'b0;
-  always #(ClkPeriodSys/2) pll_ref_clk = ~pll_ref_clk;
 
   // External board-level loopback used by sw/test/test_gpio.c.
   assign gpio_io[7:4] = gpio_io[3:0];
-  assign gpio_io[8] = 1'b0;
 
   initial begin
     if ($value$plusargs("binary=%s", binary_path)) begin
       $display("Running program: %s", binary_path);
     end else begin
-      $display("No binary path provided. Running the generated MAYO end-to-end fixture.");
-      // Build the fallback with `make -C sw/mayo_end_to_end`.
-      binary_path = "../sw/bin/mayo_end_to_end/generated/end_to_end.hex";
+      $display("No binary path provided. Running helloworld.");
+      binary_path = "../sw/bin/helloworld.hex";
     end
   end
 
+  // The boundary-scan TAP registers TDO, adding one flop: IR 4+1 bits, bypass 1+1 bits.
   croc_vip #(
-    .GpioCount ( GpioCount )
+    .GpioCount         ( GpioCount          ),
+    .ExtraIrLenBefore  ( BndScanIrWidth + 1 ),
+    .ExtraDrBitsBefore ( 2                  )
   ) i_vip (
     .rst_no        ( rst_n    ),
     .sys_clk_o     ( sys_clk  ),
@@ -93,7 +85,6 @@ module tb_croc_chip #(
     .clk_i        ( sys_clk     ),
     .rst_ni       ( rst_n       ),
     .ref_clk_i    ( ref_clk     ),
-    .pll_ref_clk_i( pll_ref_clk ),
     .jtag_tck_i   ( jtag_tck    ),
     .jtag_trst_ni ( jtag_trst_n ),
     .jtag_tms_i   ( jtag_tms    ),
@@ -103,13 +94,6 @@ module tb_croc_chip #(
     .uart_tx_o    ( uart_tx     ),
     .testmode_i   ( 1'b0        ),
     .status_o     ( status      ),
-    .pll_en_i     ( 1'b0        ),
-    .pll_bp_i     ( 1'b1        ),
-    .pll_select_i ( 1'b0        ),
-    .pll_n_i      ( 8'd20       ),
-    .pll_od_i     ( 2'b00       ),
-    .pll_clksel_i ( 1'b0        ),
-    .pll_cktst_o  ( pll_cktst   ),
     .gpio0_io     ( gpio_io[0]  ),
     .gpio1_io     ( gpio_io[1]  ),
     .gpio2_io     ( gpio_io[2]  ),
@@ -119,21 +103,37 @@ module tb_croc_chip #(
     .gpio6_io     ( gpio_io[6]  ),
     .gpio7_io     ( gpio_io[7]  ),
     .gpio8_io     ( gpio_io[8]  ),
-    .sd_clk_o     ( sd_clk      ),
-    .sd_cd_ni     ( 1'b1        ),
-    .sd_dat_io0   ( sd_dat_io[0]),
-    .sd_dat_io1   ( sd_dat_io[1]),
-    .sd_dat_io2   ( sd_dat_io[2]),
-    .sd_dat_io3   ( sd_dat_io[3]),
-    .sd_cmd_io    ( sd_cmd_io   ),
+    .gpio9_io     ( gpio_io[9]  ),
+    .gpio10_io    ( gpio_io[10] ),
+    .gpio11_io    ( gpio_io[11] ),
+    .gpio12_io    ( gpio_io[12] ),
+    .gpio13_io    ( gpio_io[13] ),
+    .gpio14_io    ( gpio_io[14] ),
+    .gpio15_io    ( gpio_io[15] ),
+    .gpio16_io    ( gpio_io[16] ),
+    .gpio17_io    ( gpio_io[17] ),
+    .gpio18_io    ( gpio_io[18] ),
+    .gpio19_io    ( gpio_io[19] ),
+    .gpio20_io    ( gpio_io[20] ),
+    .gpio21_io    ( gpio_io[21] ),
+    .gpio22_io    ( gpio_io[22] ),
+    .gpio23_io    ( gpio_io[23] ),
+    .gpio24_io    ( gpio_io[24] ),
+    .gpio25_io    ( gpio_io[25] ),
+    .gpio26_io    ( gpio_io[26] ),
+    .gpio27_io    ( gpio_io[27] ),
+    .gpio28_io    ( gpio_io[28] ),
+    .gpio29_io    ( gpio_io[29] ),
+    .gpio30_io    ( gpio_io[30] ),
+    .gpio31_io    ( gpio_io[31] ),
+    .unused0_o    ( unused[0]   ),
+    .unused1_o    ( unused[1]   ),
+    .unused2_o    ( unused[2]   ),
+    .unused3_o    ( unused[3]   ),
     .VDD          ( VDD         ),
     .VSS          ( VSS         ),
     .VDDIO        ( VDDIO       ),
-    .VSSIO        ( VSSIO       ),
-    .DVDD_DRV     ( DVDD_DRV    ),
-    .DVSS_DRV     ( DVSS_DRV    ),
-    .PLL_AVDD     ( PLL_AVDD    ),
-    .PLL_AVSS     ( PLL_AVSS    )
+    .VSSIO        ( VSSIO       )
   );
 
   logic [31:0] tb_data;

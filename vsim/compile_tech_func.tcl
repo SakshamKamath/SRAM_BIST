@@ -1,5 +1,5 @@
-# Behavioral models for the IHP13 tech cells and SRAM macros.
-# Sourced by run_vsim.sh only when TECHFUNCTIONAL=1 (--techfunctional).
+# Behavioral models for the IHP13 tech cells, SRAM macros and IO pads.
+# Sourced by run_vsim.sh --build on every build (compile_rtl.tcl needs them).
 # Must run BEFORE compile_rtl.tcl.
 
 set ROOT ".."
@@ -24,3 +24,7 @@ tech_vlog "SRAM macro 256x64 bm_bist" \
     "+define+SIM" \
     "$ROOT/technology/verilog/RM_IHPSG13_1P_core_behavioral_bm_bist.v" \
     "$ROOT/technology/verilog/RM_IHPSG13_1P_256x64_c2_bm_bist.v"
+
+# 3. IO pads (sg13cmos5l_IOPad*), needed by croc_chip / tb_croc_chip
+tech_vlog "SG13CMOS5L IO pads" \
+    "$ROOT/technology/verilog/sg13cmos5l_io.v"
